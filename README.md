@@ -55,3 +55,8 @@
 
 以活動公告為貫穿案例，了解 Agent 的任務規劃、工具呼叫、執行回饋、工作紀錄及 Skill；接著練習查核資料來源、辨識提示詞注入、掌握工具權限與人工確認，並認識 Windows 桌面端與 Colab／Ollama 遠端模型的連線情境。
 
+## Conda 環境安裝
+
+Minicoda
+
+[https://www.anaconda.com/download/success](https://www.anaconda.com/download/success)
