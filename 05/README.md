@@ -7,8 +7,8 @@
 先從 [conda 官方下載頁](https://docs.conda.io/en/latest/) 安裝對應作業系統的 Miniconda：Windows 使用 Miniconda Prompt；macOS 與 Ubuntu 使用終端機。安裝後進入解壓縮的套件根目錄，執行：
 
 ```bash
-conda create -n llm05 python=3.11 -y
-conda activate llm05
+conda create -n ai python=3.13 -y
+conda activate ai
 python -m pip install -r requirements.txt
 ```
 
