@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>04｜YOLO 物件偵測：滑鼠框選練習（自由管理圖片與類別）</title>
+<style>
+:root{font-family:"Noto Sans TC","Microsoft JhengHei",system-ui,sans-serif;color:#1d2939;background:#f4f7fb}
+*{box-sizing:border-box}body{margin:0}header{padding:20px max(20px,calc((100vw - 1320px)/2));background:#fff;border-bottom:1px solid #dce5f0}
+h1{font-size:24px;margin:0 0 8px}header p{margin:0;color:#52647d;font-size:13px;line-height:1.65}
+main{max-width:1320px;margin:18px auto;display:grid;grid-template-columns:minmax(275px,340px) minmax(0,1fr);gap:14px;padding:0 15px}
+.panel{background:white;border:1px solid #dde5ef;border-radius:14px;padding:16px;box-shadow:0 5px 18px rgba(30,60,100,.04)}aside{display:flex;flex-direction:column;gap:18px}
+section+section{border-top:1px solid #e7edf5;padding-top:15px}h2{font-size:16px;margin:0 0 7px}.sub{font-size:12px;line-height:1.6;color:#607288;margin:5px 0 9px}
+input,button,select{font:inherit}input[type=file]{max-width:100%;font-size:12px}input[type=text]{min-width:0;width:100%;border:1px solid #bfcddd;border-radius:8px;padding:9px;font-size:13px}
+select{border:1px solid #c4d1e1;border-radius:8px;background:#fff;padding:8px;font-size:13px;min-width:0;max-width:100%}
+button{border:1px solid #cbd8e9;background:#eef4fc;color:#285798;border-radius:8px;padding:8px 9px;cursor:pointer;font-size:12px;font-weight:760}
+button:hover{background:#dceaff}button:disabled{opacity:.45;cursor:not-allowed}.primary{background:#315fae;color:#fff;border-color:#315fae}.primary:hover{background:#264f95}
+.flex{display:flex;align-items:center;gap:7px}.flex>input[type=text]{flex:1}.flex>button{flex:0 0 auto}.hint{font-size:11px;line-height:1.55;color:#63738b}
+.warning{background:#fff6e7;border:1px solid #f0dcba;border-radius:9px;padding:9px;font-size:12px;line-height:1.55;color:#77561e}
+.good{background:#e9f7ef;border:1px solid #bee3cd;border-radius:9px;padding:8px;font-size:12px;color:#2a714f}
+.filelist{max-height:390px;overflow-y:auto;display:grid;gap:5px;margin-top:8px}.file-row{display:grid;grid-template-columns:minmax(0,1fr) 68px 28px;gap:5px;align-items:center}
+.filebtn{overflow-wrap:anywhere;text-align:left;background:#f7faff;white-space:normal;color:#415975;font-size:11.5px;font-weight:650}.filebtn.chosen{background:#e4f0ff;border-color:#5e91d4}.filebtn .state{font-weight:850;color:#97712d;margin-left:3px}.filebtn .state.ok{color:#22835b}
+.file-row select{font-size:11px;padding:7px 2px;width:100%}.file-row .remove-image{padding:6px 0;color:#a33c39;background:#fff3f0;border-color:#f1cdc6;font-size:17px;line-height:1.15;min-height:29px}.file-row .remove-image:hover{background:#ffe1db}.classlist{display:grid;gap:5px;margin:8px 0 10px;max-height:175px;overflow:auto}.classchip{font-size:12px;background:#f0f4fa;color:#3d5578;border-radius:7px;padding:5px 8px;display:flex;align-items:center;gap:7px}
+.classchip{gap:6px;flex-wrap:wrap}.classchip .class-name{flex:1;min-width:65px;overflow-wrap:anywhere}.classchip .edit-name,.classchip .delete-name{padding:4px 6px;font-size:11px;white-space:nowrap}.classchip .delete-name{background:#fff0ed;color:#a43a31;border-color:#f1c3bd}.classchip b{width:22px;text-align:right;color:#315a93}.dot{width:11px;height:11px;border-radius:3px;display:inline-block}
+.viewer{display:flex;flex-direction:column;gap:9px;min-width:0}.stage{min-height:420px;background:#e8edf5;border:1px dashed #c8d2e2;border-radius:10px;display:flex;align-items:center;justify-content:center;overflow:auto;padding:10px}
+canvas{background:#fff;max-width:100%;height:auto;border-radius:5px;cursor:crosshair;touch-action:none;box-shadow:0 4px 12px rgba(10,28,50,.14)}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.toolbar select{width:auto}.status{font-size:12px;line-height:1.5;color:#426385;min-height:20px}
+.chips{display:flex;flex-wrap:wrap;gap:5px}.chip{font-size:11px;background:#edf2f8;padding:5px 7px;border-radius:6px}.foot{font-size:12px;line-height:1.65;color:#607288}
+@media(max-width:900px){main{grid-template-columns:1fr}.stage{min-height:260px}header{padding:18px}}
+</style>
+</head>
+<body>
+<header><h1>04｜YOLO 物件偵測：滑鼠框選練習</h1><p>本機 HTML、免登入、可離線操作。自行新增／修改／刪除類別、手動指定 Train／Val，並可移除不想標的圖片，再以滑鼠框選物件；完成後匯出包含圖片、標註與 <code>data.yaml</code> 的完整 YOLO 資料集 ZIP。</p></header>
+<main>
+<aside class="panel">
+<section><h2>1. 加入圖片，選擇 Train／Val</h2>
+<p class="sub">可一次或分次加入 JPG／PNG／WebP。新圖片預設 Train（不會依檔名判斷）；請在圖片列表自行選擇 Train／Val。不想標的照片按右側「×」移除，匯出時不會包含它。</p>
+<input id="imageFiles" type="file" accept="image/jpeg,image/png,image/webp" multiple aria-label="選擇標註圖片">
+<p class="sub" id="counter">目前 0 張｜Train 0｜Val 0｜完成 0</p>
+<div class="filelist" id="filelist"></div></section>
+<section><h2>2. 指定物件類別</h2>
+<p class="sub">所有類別（包含原本預設的項目）都能<strong>新增、重新命名、刪除</strong>。刪除時會檢查既有方框，並安全調整後續編號，避免類別錯位。</p>
+<div class="classlist" id="classList"></div>
+<div class="flex"><input id="newClass" type="text" placeholder="例如 dog 或 wall" maxlength="48" aria-label="新增類別名稱"><button id="addClass">＋新增類別</button></div>
+<p class="hint">重新命名不會改變原有標註；刪除有畫框的類別，會先詢問並移除該類別的框。至少保留一種物件類別。</p>
+<p class="hint" id="savedHint">類別設定儲存在此瀏覽器；換電腦請匯出再匯入類別 JSON。</p>
+<div class="flex"><button id="saveClasses">下載類別設定</button><button id="loadClasses">匯入類別設定</button><input type="file" id="classFile" accept=".json,application/json" hidden></div>
+<button id="saveCustomHtml" style="width:100%;margin-top:6px">下載含自訂預設類別的 HTML</button>
+<p class="sub"><label for="cls">下一個框要標註的類別</label></p>
+<select id="cls" style="width:100%"></select>
+<p class="hint">例如磚牆可以只當「背景」（不畫框）；若需要模型偵測牆壁，新增 <code>wall</code> 並畫框即可。新增類別不會自動變成原有預訓練模型可辨認的類別。</p></section>
+<section><h2>3. 匯出完整 YOLO 資料集</h2>
+<button class="primary" id="exportZip" style="width:100%">匯出圖片＋標註＋data.yaml ZIP</button>
+<p class="sub">會依照每張的 Train／Val 選擇，建立 <code>images/train</code>、<code>images/val</code>、<code>labels/train</code>、<code>labels/val</code>，以及自動產生的 <code>data.yaml</code>。</p>
+<div class="warning">關閉網頁前請下載 ZIP。類別清單可保存在瀏覽器、匯出 JSON 或下載含自訂預設類別的 HTML，但載入的圖片與畫框不會自動保存。Train／Val 都至少需有一張圖片。</div></section>
+</aside>
+<section class="panel viewer">
+<div class="toolbar"><strong id="filename">尚未加入圖片</strong><span class="hint" id="dimension"></span></div>
+<div class="stage"><canvas id="canvas" width="800" height="450" aria-label="拖曳滑鼠畫出物件邊界框"></canvas></div>
+<div class="toolbar"><button id="undo">撤銷上一個框</button><button id="clear">清除這張全部框</button><button id="done" class="primary">完成本張標註</button><button id="next">下一張 →</button></div>
+<div class="chips" id="boxList"></div><div class="status" id="status">請選擇圖片，再於物件左上角按住滑鼠，拖曳至右下角。</div>
+<div class="foot">每個要偵測的物件各畫一個完整框。沒有指定物件的圖片，可保留 0 框並按「完成本張標註」。調整框或更換類別後要重新按完成。少量圖片只能作為練習，不能用其驗證結果代表模型實際準確率。左側列表可切換 Train／Val 或移除不想標的圖片。</div>
+</section></main>
+<script>
+'use strict';
+const DEFAULT_CLASSES=['person','cat','cup','horse','rocket','clock'];
+const STORAGE_KEY='04_yolo_annotation_classes_v3_'+DEFAULT_CLASSES.join('_');
+const OLD_STORAGE_KEY='04_yolo_annotation_classes_v2_'+DEFAULT_CLASSES.join('_');
+const COLORS=['#ee6b3b','#159570','#3568d4','#a155b4','#d15353','#008ca3','#af6a19','#617397','#d75ca9','#64a322'];
+const $=id=>document.getElementById(id);
+let classNames=loadStoredClasses();
+let images=[],current=-1,drag=null, exporting=false;
+const canvas=$('canvas'),ctx=canvas.getContext('2d');
+function msg(s){$('status').textContent=s}
+function validClasses(v){return Array.isArray(v)&&v.length>0&&v.length<=100&&v.every(x=>typeof x==='string'&&x.trim()!==''&&x.trim().length<=48&&!/[<>&\x00-\x1f]/.test(x))&&new Set(v.map(x=>x.trim().toLowerCase())).size===v.length}
+function loadStoredClasses(){for(const key of [STORAGE_KEY,OLD_STORAGE_KEY]){try{const v=JSON.parse(localStorage.getItem(key));if(validClasses(v))return v}catch(e){}}return [...DEFAULT_CLASSES]}
+function storeClasses(){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(classNames));$('savedHint').textContent='類別已保存在這個瀏覽器；換電腦請匯出／匯入類別設定。'}catch(e){$('savedHint').textContent='此瀏覽器不允許永久保存設定。請使用「下載類別設定」保存。'}}
+function color(i){return COLORS[i%COLORS.length]}
+function classUI(){const old=$('cls').value;$('cls').replaceChildren();$('classList').replaceChildren();classNames.forEach((name,i)=>{
+ const o=document.createElement('option');o.value=i;o.textContent=`${i}　${name}`;$('cls').append(o);
+ const row=document.createElement('div');row.className='classchip';
+ const d=document.createElement('i');d.className='dot';d.style.background=color(i);
+ const n=document.createElement('b');n.textContent=i;
+ const s=document.createElement('span');s.className='class-name';s.textContent=name;
+ const edit=document.createElement('button');edit.className='edit-name';edit.textContent='修改';edit.title=`重新命名 ${name}`;edit.onclick=()=>renameClass(i);
+ const del=document.createElement('button');del.className='delete-name';del.textContent='刪除';del.title=`刪除 ${name}`;del.onclick=()=>deleteClass(i);
+ row.append(d,n,s,edit,del);$('classList').append(row);
+ });if(old!==''&&Number(old)<classNames.length)$('cls').value=old;
+}
+function renameClass(i){
+ const oldName=classNames[i];if(oldName===undefined)return;
+ const proposed=prompt(`修改第 ${i} 類的名稱（既有方框會保留）：`,oldName);
+ if(proposed===null)return;
+ const name=proposed.trim();
+ if(!validClasses(classNames.map((v,j)=>j===i?name:v))){alert('類別名稱不能是空白、重複，且不可包含 < > & 或控制字元。');return}
+ classNames[i]=name;classUI();storeClasses();render();msg(`類別 ${i} 已由 ${oldName} 改為 ${name}；原有方框不受影響。`);
+}
+function deleteClass(i){
+ if(classNames.length<=1){alert('至少需要保留一種物件類別；可以將最後一項重新命名。');return}
+ const oldName=classNames[i];if(oldName===undefined)return;
+ const count=images.reduce((n,im)=>n+im.boxes.filter(b=>b.cls===i).length,0);
+ const question=count>0?`刪除「${oldName}」會一併刪除 ${count} 個已畫的框；後續類別的編號會自動更新。確定嗎？`:`確定刪除「${oldName}」？後續類別編號會自動更新。`;
+ if(!confirm(question))return;
+ for(const im of images){
+  const before=im.boxes.length;
+  im.boxes=im.boxes.filter(b=>b.cls!==i);
+  for(const b of im.boxes){if(b.cls>i)b.cls-=1}
+  if(im.boxes.length!==before)im.done=false;
+ }
+ classNames.splice(i,1);classUI();$('cls').value=String(Math.min(i,classNames.length-1));
+ storeClasses();drag=null;render();list();msg(`已刪除 ${oldName}${count?'，並移除相關方框':''}；類別編號已重新對齊，受影響圖片需重新按完成。`);
+}
+function addClass(){const name=$('newClass').value.trim();if(!name){msg('請先輸入類別名稱。');return}if(classNames.some(x=>x.toLowerCase()===name.toLowerCase())){msg('類別已存在，請換個名稱。');return}if(classNames.length>=100){msg('最多可設定 100 種類別。');return}if(!validClasses([...classNames,name])){msg('類別名稱不能包含 <、>、& 或控制字元。');return}
+ classNames.push(name);classUI();$('cls').value=String(classNames.length-1);$('newClass').value='';storeClasses();msg(`已新增 ${name}（類別編號 ${classNames.length-1}）。`)}
+$('addClass').onclick=addClass;$('newClass').addEventListener('keydown',e=>{if(e.key==='Enter')addClass()});
+function saveBlob(blob,name){const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),30000)}
+$('saveClasses').onclick=()=>saveBlob(new Blob([JSON.stringify({classes:classNames},null,2)],{type:'application/json'}),'04_YOLO類別設定.json');
+$('saveCustomHtml').onclick=()=>{const html='<!doctype html>\n'+document.documentElement.outerHTML.replace(/const DEFAULT_CLASSES=\[[^\]]*\];/,`const DEFAULT_CLASSES=${JSON.stringify(classNames)};`);saveBlob(new Blob([html],{type:'text/html;charset=utf-8'}),'04_標註工具_自訂類別版.html');msg('已下載含目前類別清單的獨立 HTML，可分享給學生作為新的預設類別。')};
+$('loadClasses').onclick=()=>$('classFile').click();
+$('classFile').addEventListener('change',async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;try{
+ const data=JSON.parse(await f.text()),names=data.classes;if(!validClasses(names))throw Error('格式應為 {"classes":["person","cat",...]}，且名稱不能重複。');
+ if(images.some(im=>im.boxes.length)&&!confirm('匯入會改變類別編號的意義。現有方框將清空，確定繼續？'))return;
+ images.forEach(im=>{im.boxes=[];im.done=false});classNames=names.map(x=>x.trim());classUI();list();render();storeClasses();msg('已匯入類別設定，請重新標註圖片。')
+ }catch(err){alert('無法匯入類別設定：'+err.message)}});
+function list(){const out=$('filelist');out.replaceChildren();images.forEach((entry,i)=>{
+ const row=document.createElement('div');row.className='file-row';const b=document.createElement('button');b.className='filebtn'+(i===current?' chosen':'');
+ const filename=document.createElement('span');filename.textContent=entry.file.name;const state=document.createElement('span');state.className='state'+(entry.done?' ok':'');state.textContent=entry.done?' ✓':' ·待完成';b.append(filename,state);b.onclick=()=>choose(i);
+ const sel=document.createElement('select');sel.setAttribute('aria-label',`選擇 ${entry.file.name} 的訓練或驗證用途`);
+ for(const [val,name] of [['train','Train'],['val','Val']]){const o=document.createElement('option');o.value=val;o.textContent=name;sel.append(o)}sel.value=entry.split;sel.onchange=()=>setSplit(i,sel.value);
+ const remove=document.createElement('button');remove.type='button';remove.className='remove-image';remove.textContent='×';remove.title=`移除 ${entry.file.name}（不刪除電腦上的原圖）`;
+ remove.setAttribute('aria-label',`移除圖片 ${entry.file.name}`);remove.onclick=()=>removeImage(i);
+ row.append(b,sel,remove);out.append(row);
+ });const t=images.filter(e=>e.split==='train').length,v=images.length-t,d=images.filter(e=>e.done).length;$('counter').textContent=`目前 ${images.length} 張｜Train ${t}｜Val ${v}｜完成 ${d}`;
+}
+function setSplit(i,split){if(!images[i]||!['train','val'].includes(split))return;images[i].split=split;list();msg(`已將 ${images[i].file.name} 設為 ${split.toUpperCase()}。`)}
+function removeImage(i){
+ const entry=images[i];if(!entry)return;
+ if((entry.boxes.length||entry.done)&&!confirm(`移除「${entry.file.name}」？這張照片的 ${entry.boxes.length} 個標註框及完成狀態將從本頁清除，匯出 ZIP 也不會包含它。電腦上的原圖不受影響。`))return;
+ const oldCurrent=current;
+ images.splice(i,1);URL.revokeObjectURL(entry.url);drag=null;
+ if(!images.length){current=-1;canvas.width=800;canvas.height=450;$('filename').textContent='尚未加入圖片';$('dimension').textContent='';render();list()}
+ else if(i===oldCurrent){current=-1;choose(Math.min(i,images.length-1))}
+ else{if(i<oldCurrent)current--;list();render()}
+ msg(`已從列表移除 ${entry.file.name}；匯出 ZIP 不會包含這張圖片。`);
+}
+function choose(i){if(i<0||i>=images.length)return;current=i;drag=null;const entry=images[i];$('filename').textContent=entry.file.name;
+ if(entry.img){resizeCanvas(entry.img);render()}else{const im=new Image();im.onload=()=>{entry.img=im;resizeCanvas(im);render()};im.onerror=()=>msg('圖片無法讀取。');im.src=entry.url}
+ list()}
+function resizeCanvas(im){const s=Math.min(960/im.naturalWidth,540/im.naturalHeight,1);canvas.width=Math.round(im.naturalWidth*s);canvas.height=Math.round(im.naturalHeight*s);$('dimension').textContent=`原圖 ${im.naturalWidth} × ${im.naturalHeight}`}
+function coords(ev){const r=canvas.getBoundingClientRect();return {x:Math.max(0,Math.min(1,(ev.clientX-r.left)/r.width)),y:Math.max(0,Math.min(1,(ev.clientY-r.top)/r.height))}}
+function rect(b){const c=color(b.cls),x=b.x*canvas.width,y=b.y*canvas.height;ctx.strokeStyle=c;ctx.fillStyle=c;ctx.lineWidth=3;ctx.strokeRect(x,y,b.w*canvas.width,b.h*canvas.height);
+ const text=`${b.cls} ${classNames[b.cls]}`,yy=Math.max(0,y-22);ctx.font='bold 13px sans-serif';ctx.fillRect(x,yy,ctx.measureText(text).width+9,22);ctx.fillStyle='#fff';ctx.fillText(text,x+4,yy+15)}
+function render(){ctx.clearRect(0,0,canvas.width,canvas.height);const e=images[current];if(!e||!e.img){ctx.fillStyle='#526479';ctx.font='16px sans-serif';ctx.fillText('請先選擇圖片',20,35);$('boxList').textContent='';return}
+ ctx.drawImage(e.img,0,0,canvas.width,canvas.height);e.boxes.forEach(rect);if(drag){const p=drag.end||drag.start;ctx.save();ctx.setLineDash([5,4]);rect({cls:drag.cls,x:Math.min(p.x,drag.start.x),y:Math.min(p.y,drag.start.y),w:Math.abs(p.x-drag.start.x),h:Math.abs(p.y-drag.start.y)});ctx.restore()}
+ $('boxList').replaceChildren();e.boxes.forEach((b,i)=>{const n=document.createElement('span');n.className='chip';n.textContent=`框 ${i+1}：${classNames[b.cls]}`;$('boxList').append(n)});if(!e.boxes.length)$('boxList').textContent='這張尚未畫框；若不含需要偵測的物件，可保留 0 框。';
+}
+canvas.addEventListener('pointerdown',e=>{if(current<0||!images[current].img)return;e.preventDefault();canvas.setPointerCapture(e.pointerId);drag={start:coords(e),end:coords(e),cls:Number($('cls').value)};render()});
+canvas.addEventListener('pointermove',e=>{if(!drag)return;drag.end=coords(e);render()});
+canvas.addEventListener('pointerup',e=>{if(!drag)return;const p=coords(e),b={cls:drag.cls,x:Math.min(p.x,drag.start.x),y:Math.min(p.y,drag.start.y),w:Math.abs(p.x-drag.start.x),h:Math.abs(p.y-drag.start.y)};drag=null;
+ if(b.w>.008&&b.h>.008){images[current].boxes.push(b);images[current].done=false;msg('已新增方框，請按「完成本張標註」。')}else msg('框太小，請拉大範圍。');render();list()});
+$('imageFiles').addEventListener('change',e=>{const fs=[...e.target.files];let duplicates=0;for(const f of fs){if(!['image/jpeg','image/png','image/webp'].includes(f.type))continue;
+ if(images.some(x=>x.file.name.toLowerCase()===f.name.toLowerCase())){duplicates++;continue}
+ images.push({file:f,url:URL.createObjectURL(f),img:null,boxes:[],done:false,split:'train'});
+ }list();if(current<0&&images.length)choose(0);e.target.value='';if(duplicates)msg(`有 ${duplicates} 個重複檔名未加入，避免同名圖片互相覆蓋。`)});
+$('undo').onclick=()=>{if(current<0)return;images[current].boxes.pop();images[current].done=false;render();list()};
+$('clear').onclick=()=>{if(current<0)return;if(confirm('確定清除這張的全部框？')){images[current].boxes=[];images[current].done=false;render();list()}};
+$('done').onclick=()=>{if(current<0)return;const e=images[current];if(!e.boxes.length&&!confirm('這張圖片確認沒有需要偵測的物件，標記為 0 框背景圖嗎？'))return;
+ e.done=true;msg(`已完成 ${e.file.name}（${e.boxes.length} 個框；${e.split.toUpperCase()}）。`);list()};
+$('next').onclick=()=>{if(images.length)choose((current+1)%images.length)};
+function crc32(buf){let crc=0xffffffff;for(const b of buf){crc^=b;for(let i=0;i<8;i++)crc=(crc&1)?(crc>>>1)^0xedb88320:crc>>>1}return (crc^0xffffffff)>>>0}
+function w16(n){return [n&255,(n>>>8)&255]}function w32(n){return [n&255,(n>>>8)&255,(n>>>16)&255,(n>>>24)&255]}
+function makeZip(files){const enc=new TextEncoder(),chunks=[],central=[];let offset=0;
+ for(const f of files){const name=enc.encode(f.name),body=f.body,crc=crc32(body);
+ const head=new Uint8Array([...w32(0x04034b50),...w16(20),...w16(0x0800),...w16(0),...w16(0),...w16(0),...w32(crc),...w32(body.length),...w32(body.length),...w16(name.length),...w16(0),...name]);
+ chunks.push(head,body);central.push(new Uint8Array([...w32(0x02014b50),...w16(20),...w16(20),...w16(0x0800),...w16(0),...w16(0),...w16(0),...w32(crc),...w32(body.length),...w32(body.length),...w16(name.length),...w16(0),...w16(0),...w16(0),...w16(0),...w32(0),...w32(offset),...name]));offset+=head.length+body.length;
+ }const csize=central.reduce((s,a)=>s+a.length,0);const end=new Uint8Array([...w32(0x06054b50),...w16(0),...w16(0),...w16(files.length),...w16(files.length),...w32(csize),...w32(offset),...w16(0)]);
+ return new Blob([...chunks,...central,end],{type:'application/zip'})}
+function asText(name,text){return {name,body:new TextEncoder().encode(text)}}
+$('exportZip').onclick=async()=>{if(exporting)return;if(!images.length){alert('請先加入圖片。');return}
+ const incomplete=images.filter(x=>!x.done);if(incomplete.length){alert(`還有 ${incomplete.length} 張尚未按「完成本張標註」。`);return}
+ const train=images.filter(x=>x.split==='train'),val=images.filter(x=>x.split==='val');if(!train.length||!val.length){alert('Train 與 Val 都至少需要一張圖片。');return}
+ const trainCls=new Set(train.flatMap(e=>e.boxes.map(b=>b.cls))),valCls=new Set(val.flatMap(e=>e.boxes.map(b=>b.cls)));
+ const onlyVal=[...valCls].filter(c=>!trainCls.has(c));if(onlyVal.length&&!confirm(`這些類別只出現在 Val，沒有任何訓練框：${onlyVal.map(c=>classNames[c]).join('、')}。這樣無法合理驗證該類別，仍要匯出嗎？`))return;
+ if(!valCls.size&&!confirm('目前 Val 全是 0 框背景圖，無法有意義地評估物件偵測召回率或 mAP。仍要匯出練習資料嗎？'))return;
+ exporting=true;$('exportZip').disabled=true;msg('正在打包所有圖片和標註，請稍候…');
+ try{const files=[];const yaml=['# YOLO detection dataset.\n','train: images/train\n','val: images/val\n','names:\n',...classNames.map((name,i)=>`  ${i}: ${JSON.stringify(name)}\n`)].join('');files.push(asText('data.yaml',yaml));files.push(asText('classes.txt',classNames.join('\n')+'\n'));
+ for(const e of images){const stem=e.file.name.replace(/\.[^.]+$/,'');const text=e.boxes.map(b=>[b.cls,(b.x+b.w/2).toFixed(6),(b.y+b.h/2).toFixed(6),b.w.toFixed(6),b.h.toFixed(6)].join(' ')).join('\n');
+ files.push({name:`images/${e.split}/${e.file.name}`,body:new Uint8Array(await e.file.arrayBuffer())});files.push(asText(`labels/${e.split}/${stem}.txt`,text?text+'\n':''));}
+ files.push(asText('標註摘要.txt',`Train 圖片：${train.length}\nVal 圖片：${val.length}\n類別數：${classNames.length}\n備註：0 框圖片代表背景，不需要 background 類別。\n`));
+ saveBlob(makeZip(files),'04_YOLO標註資料集.zip');msg(`匯出成功：${images.length} 張圖片、${classNames.length} 類。請保存 ZIP。`);
+ }catch(err){alert('匯出失敗：'+err.message);msg('請確認圖片仍可讀取後重試。')}finally{exporting=false;$('exportZip').disabled=false}
+};
+classUI();render();
+</script>
+</body></html>

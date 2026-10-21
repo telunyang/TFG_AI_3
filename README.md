@@ -74,3 +74,11 @@ python -m pip install -r requirements.txt
 # 取消啟用環境（回到上一個環境，或是 base 環境）
 conda deactivate ai
 ```
+
+未來若是要刪除 conda 環境
+
+```bash
+# 先回到 (base)，或是回到純粹的 Command Line Interface (CMD)
+conda deactivate
+conda remove -n ai --all
+```
