@@ -57,13 +57,15 @@
 
 ## Conda 環境安裝
 
-Minicoda
+Anaconda 或 Minicoda
 
 [https://www.anaconda.com/download/success](https://www.anaconda.com/download/success)
 
 ```bash
+# 安裝環境
+conda create -n ai python=3.13 ipykernel -y
+
 # 啟用環境
-conda create -n ai python=3.13 -y
 conda activate ai
 
 # 安裝套件
@@ -72,13 +74,15 @@ pip install -r requirements.txt
 python -m pip install -r requirements.txt
 
 # 取消啟用環境（回到上一個環境，或是 base 環境）
-conda deactivate ai
+conda deactivate
 ```
 
 未來若是要刪除 conda 環境
 
 ```bash
-# 先回到 (base)，或是回到純粹的 Command Line Interface (CMD)
+# 先回到上一個環境
 conda deactivate
+
+# 刪除 conda 環境
 conda remove -n ai --all
 ```
