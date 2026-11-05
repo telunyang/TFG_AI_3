@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><meta name="color-scheme" content="light"/><title>01｜機器學習與模型訓練｜12 頁實作版</title><style>
+:root{font-family:"Noto Sans TC","Microsoft JhengHei","PingFang TC",Arial,sans-serif;color:#25334a;--blue:#386bb7;--paper:#fffcf7;--muted:#61718a;--line:#e2e9f1;--green:#1e8867;--orange:#de9b4c}*{box-sizing:border-box}
+html,body{margin:0;width:100%;height:100%;overflow:hidden}body{background:linear-gradient(135deg,#e8eefa,#f6eedf);display:grid;place-items:center}button,input{font:inherit}button{cursor:pointer}
+#deck{width:1280px;height:720px;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);transform-origin:center;background:linear-gradient(145deg,#fffdf8,#fafcff);border:1px solid #dbe3ef;border-radius:25px;box-shadow:0 25px 70px rgba(25,48,86,.17);overflow:hidden}
+header{height:77px;position:absolute;left:44px;right:44px;top:0;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e6ebf4;z-index:3}
+.brand{display:flex;align-items:center;gap:12px}.avatar{height:42px;width:42px;border-radius:14px;border:1px solid #e4e9f3;box-shadow:0 4px 12px #dfe9f3;object-fit:cover;background:white}.brand strong{display:block;color:#294d86;font-size:15px}.brand small{display:block;color:#8190a5;font-size:12px;margin-top:2px}
+.head-chips{display:flex;gap:8px}.head-chips span{padding:8px 12px;background:#edf4ff;color:#3764a2;border:1px solid #d6e5fa;border-radius:99px;font-size:12px;font-weight:900}
+.slide{position:absolute;inset:78px 0 76px;display:none}.slide.active{display:block}.slide-head{text-align:center;height:115px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px}.module{font-size:12px;letter-spacing:1.3px;font-weight:950;color:#ba842f}.slide h1{font-size:34px;line-height:1.22;margin:0;color:#243d65}.slide-head p{font-size:16px;color:#687b92;margin:0}
+.columns{height:407px;margin:2px 48px 0;display:grid;grid-template-columns:minmax(0,1.65fr) minmax(0,.89fr);gap:19px}.visual,.explain{border-radius:19px;border:1px solid #dfe8f2;box-shadow:0 9px 23px rgba(28,55,95,.06);min-width:0;min-height:0}.visual{background:white;padding:14px 17px 14px;overflow:hidden}.scene{height:100%;display:flex;flex-direction:column;min-height:0;gap:10px}.scene-kicker{font-size:13px;font-weight:900;color:#5476a6;letter-spacing:.35px;min-height:18px}.explain{background:linear-gradient(180deg,#fdfefa,#f5f9ff);padding:17px;display:flex;flex-direction:column;gap:12px;overflow:hidden}.aside-kicker{font-size:14px;color:#315e9e;font-weight:950}.info-line{border:1px solid #e2ebf5;background:#fff;border-radius:13px;padding:10px 12px;display:grid;grid-template-columns:44px 1fr;gap:2px 8px;align-items:center}.info-line>span{grid-row:1/3;background:#e8f2ff;color:#285c9b;border-radius:10px;min-width:41px;min-height:37px;display:grid;place-items:center;font-weight:900;font-size:14px}.info-line strong{font-size:16px;color:#334e73}.info-line small{font-size:12px;line-height:1.4;color:#657891}.takeaway{margin-top:auto;padding:10px 12px;background:#e7f7ee;color:#306b55;font-size:12.2px;line-height:1.43;border-radius:12px;border:1px solid #c7e4d4;display:flex;flex-direction:column;gap:2px}.takeaway b{font-size:11px;color:#1e7d59}.simple-question{background:#fff2dd;border:1px solid #f0debf;border-radius:12px;padding:11px;color:#8b662f;font-size:12.5px;line-height:1.5;font-weight:800}
+.toolbar{display:flex;align-items:center;gap:8px;flex-shrink:0;min-height:34px}.toolbar.centered{justify-content:center}.toolbar button,.fit-card{padding:8px 13px;border:1px solid #cadbf1;background:#eff5ff;color:#325c99;border-radius:10px;font-size:12px;font-weight:900}.toolbar button:hover{background:#dfeaff}.toolbar button.active,.toolbar button:focus-visible{background:#3269b6;color:white;border-color:#3269b6}.toolbar button.subtle{background:white;color:#647b97}.numeric-chip{padding:8px 12px;background:#e6f7ef;color:#1e7a58;border-radius:10px;font-size:13px;font-weight:900;font-variant-numeric:tabular-nums}.scene-caption{font-size:11.6px;line-height:1.45;color:#5c7591;text-align:center;margin-top:auto}.chart-fill{flex:1;min-height:0;display:flex;align-items:stretch}.chart-fill svg{height:100%;width:100%;display:block}.legend{display:flex;gap:21px;justify-content:center;margin-top:auto;font-size:12px;color:#607490;font-weight:800}.swatch{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:6px;vertical-align:middle}.swatch.blue{background:#8ab8fa}.swatch.orange{background:#f2bc79}
+.data-table{width:100%;border-collapse:separate;border-spacing:0 5px;text-align:center;font-size:16px;flex:1}.data-table th{font-size:13px;background:#edf4ff;color:#3565a8;padding:7px}.data-table td{padding:6px;background:#f7faff;border:1px solid #edf2f9;font-weight:850}.data-table .xcol.hot{background:#d8ebff;color:#245da4;box-shadow:inset 0 0 0 2px #8eb6eb}.data-table .ycol.hot{background:#ffedcb;color:#a87325;box-shadow:inset 0 0 0 2px #e5ba7d}
+.clean-rows{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:9px;flex:1;align-items:stretch;min-height:0}.clean-box{display:flex;flex-direction:column;justify-content:center;align-items:center;gap:9px;background:#f5f9ff;border:1px solid #dbe8f8;border-radius:13px;min-height:0}.clean-box small{font-size:12px;color:#7185a2;font-weight:800}.clean-box strong{font-size:26px;color:#305f9e}.clean-box.problem{background:#fff0e6;border-color:#efbb91}.clean-box.problem strong{color:#ac6b35}.clean-box.fixed{background:#e8f8ef;border-color:#a9d8bd}.clean-box.fixed strong{color:#207b56}
+.split-tiles{display:grid;grid-template-columns:repeat(5,1fr);grid-template-rows:repeat(2,1fr);gap:11px;flex:1;min-height:0}.split-tile{border-radius:14px;display:grid;place-items:center;font-size:23px;font-weight:950;color:#315f9c;background:#e4f0ff;border:1px solid #aacbf3}.split-tile.test{color:#a66b27;background:#fff0d8;border-color:#efcb98}
+.metric-bar,.acc-total{display:flex;gap:10px;min-height:58px;flex-shrink:0}.metric-bar>div,.acc-total>div{flex:1;border:1px solid #d7e8f3;background:#f4f9ff;border-radius:12px;padding:8px 13px;display:flex;justify-content:space-between;align-items:center}.metric-bar small,.acc-total small{font-size:12px;color:#617a96;font-weight:850}.metric-bar strong,.acc-total strong{font-size:24px;color:#235da7;font-weight:950;font-variant-numeric:tabular-nums}
+.binary-table{flex:1;display:flex;flex-direction:column;min-height:0;gap:5px}#binaryList{display:flex;flex-direction:column;flex:1;gap:5px;min-height:0}.binary-head,.binary-row{display:grid;grid-template-columns:1fr 1fr;text-align:center;align-items:center}.binary-head{font-size:13px;font-weight:900;color:#55749b}.binary-row{width:100%;flex:1;padding:5px;border:1px solid #e5ebf3;background:#f9fbff;border-radius:10px;min-height:33px;cursor:pointer;font-weight:900;color:#365378}.binary-row:hover,.binary-row.chosen{background:#e7f2ff;border-color:#9ec2ef}.binary-yes,.binary-no{border-radius:9px;padding:3px 9px}.binary-yes{background:#e3f6ea;color:#1c8155}.binary-no{background:#fff0e5;color:#ae6e34}
+.prob-big{display:grid;grid-template-columns:1fr 1fr;gap:8px}.prob-big>div{border:1px solid #d9e8f8;background:white;border-radius:12px;padding:14px 7px;text-align:center}.prob-big small{display:block;font-size:11px;color:#6c819a}.prob-big strong{display:block;font-size:24px;color:#2b63a8;margin-top:5px}.sliderbar{justify-content:center;gap:15px}.sliderbar label{font-weight:900;color:#506990;font-size:13px}.sliderbar input{width:340px;accent-color:#386bb7}.sliderbar strong{font-size:17px;min-width:50px;color:#3162a5}
+.accuracy-cards{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;flex:1;min-height:0}.acc-card{border:1px solid #dce7f3;background:#f9fbff;border-radius:14px;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:10px;min-width:0;cursor:pointer}.acc-card small{font-size:11px;color:#607892}.acc-card strong{font-size:15px;color:#315b98}.acc-card .status{border-radius:8px;padding:5px 8px;font-size:12px;font-weight:900}.acc-card .status.good{color:#267750;background:#e7f7ed}.acc-card .status.bad{color:#ad7040;background:#fff0e7}.acc-card.tap{border-color:#e8bf8a;background:#fff8ec}
+.fit-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;flex:1;min-height:0}.fit-card{background:white;color:#345277;min-width:0;border-radius:14px;padding:7px;display:flex;flex-direction:column;align-items:center;justify-content:space-around;gap:4px}.fit-card strong{font-size:17px}.fit-card svg{width:100%;height:150px}.fit-card.selected{border:2px solid #5690d7;background:#ecf5ff}.fit-card small{font-size:11.2px;line-height:1.4;color:#5f7791}.fit-card:hover{background:#f0f7ff}
+.quiz{flex:1;display:flex;flex-direction:column;gap:12px;min-height:0}.quiz-progress{font-size:14px;font-weight:950;color:#3d6eac}.quiz-question{font-size:21px;color:#344f78;background:#eff5ff;border-radius:14px;padding:15px;line-height:1.4;font-weight:950}.quiz-answers{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;flex:1;min-height:0}.quiz-choice{border:1px solid #dbe5f3;background:white;border-radius:13px;color:#3c577c;padding:11px;font-weight:900;font-size:15px;line-height:1.35}.quiz-choice:hover{background:#f0f7ff}.quiz-choice.right{background:#e4f8ec;border-color:#9fd4b4;color:#1c7450}.quiz-choice.wrong{background:#fff0e7;border-color:#efc4a5;color:#9e623b}.quiz-feedback{min-height:47px;background:#f6f9fd;padding:10px;border-radius:10px;font-size:12.5px;line-height:1.4;color:#4b6685}.quiz-feedback.good{background:#e9f8ef;color:#28714f}.quiz-feedback.hint{background:#fff5e8;color:#96652c}.quiz-toolbar{display:flex;justify-content:space-between;align-items:center;min-height:35px}.quiz-toolbar button{border:0;background:#3168b5;color:white;border-radius:10px;padding:9px 14px;font-size:12px;font-weight:900}.quiz-toolbar button:disabled{opacity:.33;cursor:default}.slide[data-page="10"] .explain{gap:9px;padding:14px 17px}.quiz-aside{background:#fff;border:1px solid #e4eaf2;border-radius:15px;padding:18px;display:flex;flex-direction:column;gap:8px;color:#55718c;flex:1}.quiz-aside p{margin:0;font-size:14px;border-bottom:1px dashed #e0e9f1;padding-bottom:11px}.big-count{font-size:64px;text-align:center;font-weight:950;color:#3066ad;line-height:1}.big-count small{font-size:20px}
+footer{position:absolute;left:44px;right:44px;bottom:14px;height:54px;border-top:1px solid #e5ebf3;display:flex;align-items:center;gap:15px;color:#75849a;font-size:12px}.progress-track{height:7px;background:#e6edf5;border-radius:99px;flex:1;overflow:hidden}.progress-fill{height:100%;width:0;background:linear-gradient(90deg,#70bba6,#73a3e5)}footer button{background:#eef4ff;border:1px solid #cfdff3;border-radius:11px;padding:10px 16px;color:#3462a2;font-weight:900}.page-number{min-width:75px;text-align:center;font-weight:900;font-variant-numeric:tabular-nums}.footer-actions{margin-left:auto;display:flex;align-items:center;gap:8px}
+button:focus-visible,input:focus-visible{outline:3px solid #e6ae54;outline-offset:2px}
+</style></head><body><main id="deck" role="application" aria-label="機器學習與模型訓練教學投影片"><header><div class="brand"><img class="avatar" src="data:image/png;base64,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" alt="課程頭像"/><div><strong>教學主題｜機器學習與模型訓練</strong><small>用資料做預測 · 互動實驗</small></div></div><div class="head-chips"><span>實作優先</span><span>每節 5 頁 + 3 題練習</span></div></header><section class="slide" data-page="1" aria-label="第 1 頁：原來 AI 是從資料學會猜答案">
+      <div class="slide-head"><span class="module">第 1 節 · 動手看資料</span><h1>原來 AI 是從資料學會猜答案</h1><p>讀書幾小時，能不能猜出小考分數？</p></div>
+      <div class="columns"><div class="visual"><div class="scene">
+  <div class="scene-kicker">小考紀錄 · 點選欄位</div>
+  <div class="toolbar centered"><button data-action="focus-x" class="active" id="btn-x">找輸入 X</button><button data-action="focus-y" id="btn-y">找答案 y</button></div>
+  <table class="data-table" id="miniTable"><thead><tr><th>記錄</th><th class="xcol">讀書時數 X</th><th class="ycol">小考分數 y</th></tr></thead><tbody><tr><td>小安</td><td class="xcol">1 小時</td><td class="ycol">48 分</td></tr><tr><td>小美</td><td class="xcol">2 小時</td><td class="ycol">55 分</td></tr><tr><td>小明</td><td class="xcol">3 小時</td><td class="ycol">61 分</td></tr><tr><td>小芬</td><td class="xcol">4 小時</td><td class="ycol">68 分</td></tr><tr><td>小宇</td><td class="xcol">5 小時</td><td class="ycol">76 分</td></tr></tbody></table>
+</div></div><aside class="explain"><div class="aside-kicker">一次只看兩件事</div><div class="info-line"><span>X</span><strong>輸入資料</strong><small>模型已經知道的資訊，例如讀書時數。</small></div><div class="info-line"><span>y</span><strong>正確答案</strong><small>模型想學會預測的小考分數。</small></div><div class="simple-question">試著想：讀書 6 小時，大約會考幾分？</div><div class="takeaway"><b>記住一句話</b>模型會根據「以前的例子」學習，再猜新資料。</div></aside></div>
+    </section><section class="slide" data-page="2" aria-label="第 2 頁：空白和打錯的數字，要先處理">
+      <div class="slide-head"><span class="module">第 1 節 · 整理資料</span><h1>空白和打錯的數字，要先處理</h1><p>資料錯了，模型也容易跟著猜錯。</p></div>
+      <div class="columns"><div class="visual"><div class="scene">
+  <div class="scene-kicker">每天讀書幾小時？</div><div class="toolbar centered"><button data-action="clean-off" class="active" id="clean-off">原始資料</button><button data-action="clean-on" id="clean-on">整理後</button></div>
+  <div id="cleanRows" class="clean-rows"></div><div id="cleanMessage" class="scene-caption"></div>
+</div></div><aside class="explain"><div class="aside-kicker">看懂兩種常見問題</div><div class="info-line"><span>空白</span><strong>忘記填寫</strong><small>空白不一定等於 0，可以使用合理數值補上。</small></div><div class="info-line"><span>60</span><strong>不合理數字</strong><small>一天只有 24 小時，應先查證是不是輸入錯誤。</small></div><div class="simple-question">按「整理後」，看看哪兩格改變。</div><div class="takeaway"><b>記住一句話</b>先整理資料，才拿去訓練。</div></aside></div>
+    </section><section class="slide" data-page="3" aria-label="第 3 頁：練習題與考試題，不能完全一樣">
+      <div class="slide-head"><span class="module">第 1 節 · 分組實驗</span><h1>練習題與考試題，不能完全一樣</h1><p>讓 AI 練習一部分資料，另一部分留到最後考驗它。</p></div>
+      <div class="columns"><div class="visual"><div class="scene">
+  <div class="scene-kicker">10 筆資料如何分配？</div><div class="toolbar centered"><button data-action="split-8" class="active" id="split-8">8 筆學習 + 2 筆測試</button><button data-action="split-7" id="split-7">7 筆學習 + 3 筆測試</button></div>
+  <div id="splitTiles" class="split-tiles"></div><div class="legend"><span><i class="swatch blue"></i>訓練資料：給模型看</span><span><i class="swatch orange"></i>測試資料：最後才公布</span></div>
+</div></div><aside class="explain"><div class="aside-kicker">就像寫考卷</div><div class="info-line"><span>練習</span><strong>訓練集</strong><small>可以反覆學習的題目。</small></div><div class="info-line"><span>考試</span><strong>測試集</strong><small>先藏起來，最後檢查學得如何。</small></div><div class="simple-question">如果先偷看考試答案，測驗還公平嗎？</div><div class="takeaway"><b>記住一句話</b>要用沒看過的資料，才知道模型是否真的學會。</div></aside></div>
+    </section><section class="slide" data-page="4" aria-label="第 4 頁：讓一條線慢慢學會預測分數">
+      <div class="slide-head"><span class="module">第 1 節 · 迴歸實驗</span><h1>讓一條線慢慢學會預測分數</h1><p>看藍色資料點，試著找到最能代表趨勢的橘色直線。</p></div>
+      <div class="columns"><div class="visual"><div class="scene">
+  <div class="scene-kicker">藍點是六筆示意分數 · 橘線是預測（非即時訓練）</div><div id="regressionGraph" class="chart-fill"></div>
+  <div class="toolbar centered"><button data-action="reg-play">▶ 播放直線學習動畫</button><button data-action="reg-reset" class="subtle">重新開始</button><span class="numeric-chip" id="regressionMSE">MSE = —</span></div>
+</div></div><aside class="explain"><div class="aside-kicker">線性迴歸（Regression）</div><div class="info-line"><span>①</span><strong>讀書越久</strong><small>通常分數會較高，但不是每人都一樣。</small></div><div class="info-line"><span>②</span><strong>調整直線</strong><small>讓橘線的預測比較靠近藍點。</small></div><div class="simple-question">點「播放」：橘線靠近藍點後，MSE 有變小嗎？</div><div class="takeaway"><b>記住一句話</b>迴歸就是：根據資料，猜一個數字。</div></aside></div>
+    </section><section class="slide" data-page="5" aria-label="第 5 頁：怎樣知道 AI 猜得好不好？">
+      <div class="slide-head"><span class="module">第 1 節 · 評估實驗</span><h1>怎樣知道 AI 猜得好不好？</h1><p>本課只看兩個數字：MSE 和 R²。</p></div>
+      <div class="columns"><div class="visual"><div class="scene">
+  <div class="scene-kicker">同樣六筆示意資料，切換不同猜法</div><div class="toolbar centered"><button data-action="metric-good" id="metric-good" class="active">有學到規律</button><button data-action="metric-mean" id="metric-mean">全部猜平均</button><button data-action="metric-bad" id="metric-bad">亂猜固定高分</button></div>
+  <div id="metricGraph" class="chart-fill"></div><div class="metric-bar"><div><small>MSE：越小越好</small><strong id="metricMSE">—</strong></div><div><small>R²：越接近 1 越好</small><strong id="metricR2">—</strong></div></div>
+</div></div><aside class="explain"><div class="aside-kicker">只學兩個評估方式</div><div class="info-line"><span>MSE</span><strong>平均差距的平方</strong><small>預測離答案越遠，MSE 通常越大。</small></div><div class="info-line"><span>R²</span><strong>比只猜平均數好多少</strong><small>1＝完美、0＝和猜平均一樣；也可能是負數。</small></div><div class="simple-question">切換三種猜法：哪一種 MSE 最小？</div><div class="takeaway"><b>記住一句話</b>分數是答案；MSE、R² 是給模型的評語。</div></aside></div>
+    </section><section class="slide" data-page="6" aria-label="第 6 頁：第 1 節：做完三題就過關">
+      <div class="slide-head"><span class="module">第 1 節 · 3 題互動練習</span><h1>第 1 節：做完三題就過關</h1><p>答錯先得到提示；答對後才會顯示完整說明。</p></div>
+      <div class="columns"><div class="visual"><div class="scene">
+  <div class="quiz" data-quiz="1"></div>
+</div></div><aside class="explain"><div class="aside-kicker">這節你會了嗎？</div><div class="quiz-aside"><div class="big-count">3 <small>題</small></div><p>資料要先整理。</p><p>訓練和測試要分開。</p><p>迴歸猜數字；MSE 和 R² 幫忙驗收。</p></div><div class="takeaway"><b>記住一句話</b>每答對一題，就能切換下一題。</div></aside></div>
+    </section><section class="slide" data-page="7" aria-label="第 7 頁：這次不猜分數，改猜「會不會及格」">
+      <div class="slide-head"><span class="module">第 2 節 · 分類實驗</span><h1>這次不猜分數，改猜「會不會及格」</h1><p>看到 0／1，就知道是分類的答案。</p></div>
+      <div class="columns"><div class="visual"><div class="scene">
+ <div class="scene-kicker">同學的練習題數與是否及格</div>
+ <div class="binary-table"><div class="binary-head"><span>練習題數 X</span><span>答案 y</span></div><div id="binaryList"></div></div>
+ <div class="scene-caption">按下任一列，看看「輸入」和「答案」的差別。</div>
+</div></div><aside class="explain"><div class="aside-kicker">分類（Classification）</div><div class="info-line"><span>0</span><strong>未及格</strong><small>這次的答案只分成兩種。</small></div><div class="info-line"><span>1</span><strong>及格</strong><small>模型學習判斷要選哪一個類別。</small></div><div class="simple-question">「68 分」和「及格」，哪個是迴歸、哪個是分類？</div><div class="takeaway"><b>記住一句話</b>迴歸猜數字；分類猜類別。</div></aside></div>
+    </section><section class="slide" data-page="8" aria-label="第 8 頁：練習題越多，AI 會怎麼判斷？">
+      <div class="slide-head"><span class="module">第 2 節 · 機率實驗</span><h1>練習題越多，AI 會怎麼判斷？</h1><p>拉動滑桿，看及格機率和 0／1 預測一起改變。</p></div>
+      <div class="columns"><div class="visual"><div class="scene">
+  <div class="scene-kicker">模型的機率曲線：只是簡單示範</div>
+  <div id="probGraph" class="chart-fill"></div>
+  <div class="toolbar sliderbar"><label for="qSlider">練習題數</label><input id="qSlider" type="range" min="0" max="30" step="1" value="8"/><strong id="qCount">8 題</strong></div>
+</div></div><aside class="explain"><div class="aside-kicker">兩個結果要看清楚</div><div class="prob-big"><div><small>及格機率</small><strong id="probValue">—</strong></div><div><small>預測類別</small><strong id="probClass">—</strong></div></div><div class="info-line"><span>50%</span><strong>簡單的分界</strong><small>機率達到 50% 就猜「及格」，低於 50% 就猜「未及格」。</small></div><div class="simple-question">試著找到預測剛好從 0 變成 1 的題數。</div><div class="takeaway"><b>記住一句話</b>機率是猜測的信心，不代表一定會發生。</div></aside></div>
+    </section><section class="slide" data-page="9" aria-label="第 9 頁：分類模型，最簡單先看正確率">
+      <div class="slide-head"><span class="module">第 2 節 · 評估實驗</span><h1>分類模型，最簡單先看正確率</h1><p>Accuracy 就是「猜對的筆數 ÷ 全部筆數」。</p></div>
+      <div class="columns"><div class="visual"><div class="scene">
+  <div class="scene-kicker">五位同學：按最後一張卡，修改一次預測</div><div id="accuracyCards" class="accuracy-cards"></div>
+  <div class="acc-total"><div><small>猜對幾人</small><strong id="accCount">—</strong></div><div><small>Accuracy</small><strong id="accValue">—</strong></div></div>
+</div></div><aside class="explain"><div class="aside-kicker">先比較兩個答案</div><div class="info-line"><span>真的</span><strong>真實是否及格</strong><small>答案原本就在測試資料裡。</small></div><div class="info-line"><span>猜的</span><strong>模型預測是否及格</strong><small>猜對的比例越高，Accuracy 越高。</small></div><div class="simple-question">如果 5 個人猜對 4 個，Accuracy 是幾 %？</div><div class="takeaway"><b>記住一句話</b>Accuracy 只計算猜對比例。</div></aside></div>
+    </section><section class="slide" data-page="10" aria-label="第 10 頁：太認真背答案，也可能考不好">
+      <div class="slide-head"><span class="module">第 2 節 · 簡單概念</span><h1>太認真背答案，也可能考不好</h1><p>模型要學會規律，不是把每個練習題死背下來。</p></div>
+      <div class="columns"><div class="visual"><div class="scene">
+ <div class="scene-kicker">三種學習方式，按下任一張比較</div><div class="fit-cards" id="fitCards"></div><div class="scene-caption" id="fitDescription"></div>
+</div></div><aside class="explain"><div class="aside-kicker">只認識三個詞</div><div class="info-line"><span>太簡單</span><strong>欠擬合</strong><small>連原本的規律也沒有抓到。</small></div><div class="info-line"><span>剛剛好</span><strong>適當擬合</strong><small>抓到大方向，也能面對新題目。</small></div><div class="info-line"><span>死背</span><strong>過度擬合</strong><small>背住練習題的細節，遇到新題目容易猜錯。</small></div><div class="simple-question">你會選哪一種方式準備下次測驗？</div><div class="takeaway"><b>記住一句話</b>學會規律比死背答案更重要。</div></aside></div>
+    </section><section class="slide" data-page="11" aria-label="第 11 頁：沒有標準答案，也能把相似的放一起">
+      <div class="slide-head"><span class="module">第 2 節 · 分群實驗</span><h1>沒有標準答案，也能把相似的放一起</h1><p>選 2 群或 3 群，看看資料怎麼自動分組。</p></div>
+      <div class="columns"><div class="visual"><div class="scene">
+  <div class="scene-kicker">橫軸：讀書時數 · 縱軸：練習題數</div><div class="toolbar centered"><button data-action="cluster-2" id="cluster-2" class="active">分成 2 群</button><button data-action="cluster-3" id="cluster-3">分成 3 群</button></div><div id="clusterGraph" class="chart-fill"></div>
+  <div class="scene-caption">顏色只代表「被分到哪一群」，不代表及格與否。</div>
+</div></div><aside class="explain"><div class="aside-kicker">K-means 分群</div><div class="info-line"><span>①</span><strong>先決定幾群</strong><small>K=2 就分兩群，K=3 就分三群。</small></div><div class="info-line"><span>②</span><strong>看誰比較接近</strong><small>把位置相近的資料分到一起。</small></div><div class="simple-question">切換成 3 群後，同一筆資料一定還在原本那群嗎？</div><div class="takeaway"><b>記住一句話</b>分群不用事先給正確答案。</div></aside></div>
+    </section><section class="slide" data-page="12" aria-label="第 12 頁：第 2 節：用三題完成挑戰">
+      <div class="slide-head"><span class="module">第 2 節 · 3 題互動練習</span><h1>第 2 節：用三題完成挑戰</h1><p>答錯先得到提示；答對後才會顯示完整說明。</p></div>
+      <div class="columns"><div class="visual"><div class="scene">
+  <div class="quiz" data-quiz="2"></div>
+</div></div><aside class="explain"><div class="aside-kicker">你已經能做到</div><div class="quiz-aside"><div class="big-count">3 <small>題</small></div><p>辨認數字和類別。</p><p>理解機率與 Accuracy。</p><p>知道不要死背答案，認識簡單的分群。</p></div><div class="takeaway"><b>記住一句話</b>兩節完成後，就能打開 Notebook 自己實驗。</div></aside></div>
+    </section><footer><span id="sectionNumber">第 1 節</span><div class="progress-track"><div class="progress-fill" id="progress"></div></div><span class="page-number" id="pageNumber">1 / 12</span><div class="footer-actions"><button id="prev" aria-label="上一頁">← 上一頁</button><button id="next" aria-label="下一頁">下一頁 →</button></div></footer></main><script>
+// Maintain a single active slide and local interaction state.
+// 使用同一組狀態管理投影片與各頁互動。
+const state = {page:0, focus:'x', clean:false, train:8, reg:0, metric:'good', binary:0, questions:8, fixed:false, fit:1, clusters:2, quiz:{1:{at:0,done:{}},2:{at:0,done:{}}}};
+
+// Keep the slide canvas proportional on any screen.
+// 依照螢幕大小等比例縮放投影片。
+function resize(){const ratio=Math.min(innerWidth/1280,innerHeight/720); document.getElementById('deck').style.transform=`translate(-50%,-50%) scale(${ratio})`;}
+// Scale immediately and after the window changes.
+// 初次載入與視窗變動時重新縮放。
+addEventListener('resize',resize); resize();
+
+// Build simple SVG coordinate helpers shared by the plots.
+// 建立多張圖表共用的 SVG 座標工具。
+const samples=[[1,48],[2,53],[3,62],[4,67],[5,73],[6,84]];
+const xPlot=x=>70+x*74;
+const yPlot=y=>260-(y-35)*3.0;
+const point=(x,y,color='#3777cb',r=6)=>`<circle cx="${xPlot(x)}" cy="${yPlot(y)}" r="${r}" fill="${color}" stroke="white" stroke-width="1.8"/>`;
+const axis=(xLabel='讀書時數',yLabel='小考分數')=>`<line x1="65" y1="268" x2="620" y2="268" stroke="#9aadc4" stroke-width="2"/><line x1="65" y1="268" x2="65" y2="33" stroke="#9aadc4" stroke-width="2"/>${[40,60,80,100].map(y=>`<line x1="65" y1="${yPlot(y)}" x2="620" y2="${yPlot(y)}" stroke="#edf2f7"/><text x="55" y="${yPlot(y)+5}" text-anchor="end" fill="#6b829d" font-size="14">${y}</text>`).join('')}${[1,2,3,4,5,6].map(x=>`<text x="${xPlot(x)}" y="290" fill="#647b97" font-size="14" text-anchor="middle">${x}</text>`).join('')}<text x="345" y="319" fill="#5d7491" font-size="15" text-anchor="middle">${xLabel}</text><text x="35" y="28" fill="#5d7491" font-size="15">${yLabel}</text>`;
+const line=(a,b,color)=>`<line x1="${xPlot(.2)}" y1="${yPlot(a+b*.2)}" x2="${xPlot(6.6)}" y2="${yPlot(a+b*6.6)}" stroke="${color}" stroke-width="5" stroke-linecap="round"/>`;
+const actual=samples.map(([x,y])=>point(x,y)).join('');
+const mse=pred=>samples.reduce((sum,[x,y])=>sum+(y-pred(x))**2,0)/samples.length;
+const mean=samples.reduce((sum,[x,y])=>sum+y,0)/samples.length;
+const totalVariance=samples.reduce((sum,[x,y])=>sum+(y-mean)**2,0);
+
+// Show only the requested slide, leaving arrow keys as page navigation.
+// 一次僅顯示一頁，左右方向鍵用於切換完整投影片。
+function showPage(index){
+  state.page=Math.max(0,Math.min(11,index));
+  document.querySelectorAll('.slide').forEach((slide,i)=>slide.classList.toggle('active',i===state.page));
+  document.getElementById('pageNumber').textContent=`${state.page+1} / 12`;
+  document.getElementById('sectionNumber').textContent=state.page<6?'第 1 節':'第 2 節';
+  document.getElementById('progress').style.width=`${(state.page+1)/12*100}%`;
+  document.getElementById('prev').disabled=state.page===0;
+  document.getElementById('next').disabled=state.page===11;
+  if(state.page===5)renderQuiz(1);
+  if(state.page===11)renderQuiz(2);
+}
+
+// Highlight input and target features in the small dataset.
+// 在資料表中凸顯模型的輸入與答案欄位。
+function setFocus(column){
+  state.focus=column;
+  document.querySelectorAll('#miniTable .xcol').forEach(el=>el.classList.toggle('hot',column==='x'));
+  document.querySelectorAll('#miniTable .ycol').forEach(el=>el.classList.toggle('hot',column==='y'));
+  document.getElementById('btn-x').classList.toggle('active',column==='x');
+  document.getElementById('btn-y').classList.toggle('active',column==='y');
+}
+
+// Demonstrate what was corrected, without hiding an invalid source value.
+// 並列對照原始值與修正值，不讓不合理資料被悄悄忽略。
+function renderClean(){
+  const before=['1','2','空白','4','60','5'];
+  const after=['1','2','3','4','3','5'];
+  document.getElementById('cleanRows').innerHTML=(state.clean?after:before).map((v,i)=>`<div class="clean-box ${(i===2||i===4)?(state.clean?'fixed':'problem'):''}"><small>資料 ${i+1}</small><strong>${v}</strong><small>${state.clean&&(i===2||i===4)?'用 3 小時示範補值':'小時'}</small></div>`).join('');
+  document.getElementById('cleanMessage').textContent=state.clean?'這是簡化示範：缺漏與不合理值先標記，後續由訓練資料決定補值。':'第 3 筆忘記填寫，第 5 筆「60 小時」不合理；都需要先確認。';
+  document.getElementById('clean-off').classList.toggle('active',!state.clean);
+  document.getElementById('clean-on').classList.toggle('active',state.clean);
+}
+
+// Repartition ten records into a visible training and test set.
+// 用十張資料卡切換訓練組與測試組的比例。
+function renderSplit(){
+  document.getElementById('splitTiles').innerHTML=Array.from({length:10},(_,i)=>`<div class="split-tile ${i>=state.train?'test':''}">${i+1}</div>`).join('');
+  document.getElementById('split-8').classList.toggle('active',state.train===8);
+  document.getElementById('split-7').classList.toggle('active',state.train===7);
+}
+
+// Draw an animated straight-line fit with an exact updated MSE.
+// 播放直線逐漸貼近資料的動畫，並同步重算 MSE。
+function renderRegression(){
+  const a=51+(41-51)*state.reg;
+  const b=2+(6.7-2)*state.reg;
+  const predicted=x=>a+b*x;
+  const errors=samples.map(([x,y])=>`<line x1="${xPlot(x)}" y1="${yPlot(y)}" x2="${xPlot(x)}" y2="${yPlot(predicted(x))}" stroke="#79b4a2" stroke-width="2" stroke-dasharray="5 4"/>`).join('');
+  document.getElementById('regressionGraph').innerHTML=`<svg viewBox="0 0 660 330" role="img" aria-label="迴歸直線與資料點"><rect width="660" height="330" fill="white"/>${axis()}${errors}${line(a,b,'#e8a151')}${actual}</svg>`;
+  document.getElementById('regressionMSE').textContent=`MSE = ${mse(predicted).toFixed(1)}`;
+}
+
+// Transition from a poor initial guess to a useful line.
+// 從較差的初始猜測逐步移動到貼近趨勢的直線。
+function animateRegression(){
+  const start=performance.now();
+  const startValue=state.reg;
+  function frame(now){
+    const fraction=Math.min(1,(now-start)/1200);
+    state.reg=startValue+(1-startValue)*(fraction*(2-fraction));
+    renderRegression();
+    if(fraction<1)requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+}
+
+// Compare prediction methods using the same real-valued examples.
+// 同一組範例比較三種猜法的 MSE 與 R²。
+function renderMetrics(){
+  const preds={good:x=>41+6.7*x,mean:x=>mean,bad:x=>95};
+  const colors={good:'#e39b45',mean:'#a39bca',bad:'#dd8274'};
+  const pred=preds[state.metric];
+  const a=state.metric==='good'?41:state.metric==='mean'?mean:95;
+  const b=state.metric==='good'?6.7:0;
+  const e=mse(pred);
+  const r2=1-(e*samples.length)/totalVariance;
+  document.getElementById('metricGraph').innerHTML=`<svg viewBox="0 0 660 330" role="img" aria-label="切換不同迴歸模型"><rect width="660" height="330" fill="white"/>${axis()}${line(a,b,colors[state.metric])}${actual}</svg>`;
+  document.getElementById('metricMSE').textContent=e.toFixed(1);
+  document.getElementById('metricR2').textContent=r2.toFixed(2);
+  ['good','mean','bad'].forEach(v=>document.getElementById('metric-'+v).classList.toggle('active',v===state.metric));
+}
+
+// Use a tiny set to show binary labels, not a second score formula.
+// 用少量紀錄凸顯及格與未及格只有兩個類別。
+function renderBinary(){
+  const pairs=[[2,0],[7,0],[12,1],[15,1],[18,1],[26,1]];
+  document.getElementById('binaryList').innerHTML=pairs.map(([x,y],i)=>`<button class="binary-row ${i===state.binary?'chosen':''}" data-action="binary-${i}"><span>${x} 題</span><span><b class="${y?'binary-yes':'binary-no'}">${y}｜${y?'及格':'未及格'}</b></span></button>`).join('');
+}
+
+// Show a simple S-shaped probability and the 50% cutoff.
+// 用 S 形機率曲線與 50% 分界解釋二元分類。
+function renderProbability(){
+  const predict=q=>1/(1+Math.exp(-(q-11)*.36));
+  const p=predict(state.questions);
+  const X=q=>65+q*18;
+  const Y=y=>258-y*209;
+  const curve=Array.from({length:61},(_,i)=>{const q=i*.5;return `${i?'L':'M'}${X(q).toFixed(1)} ${Y(predict(q)).toFixed(1)}`;}).join(' ');
+  document.getElementById('probGraph').innerHTML=`<svg viewBox="0 0 660 330" role="img" aria-label="練習題數與及格機率"><line x1="65" y1="258" x2="618" y2="258" stroke="#9badc2" stroke-width="2"/><line x1="65" y1="45" x2="65" y2="258" stroke="#9badc2" stroke-width="2"/><line x1="65" y1="${Y(.5)}" x2="618" y2="${Y(.5)}" stroke="#e6ac64" stroke-width="2" stroke-dasharray="7 5"/><text x="69" y="${Y(.5)-8}" font-size="13" fill="#a8793b">50% 分界</text><path d="${curve}" fill="none" stroke="#457fbc" stroke-width="5"/><circle cx="${X(state.questions)}" cy="${Y(p)}" r="9" fill="#e5a14d" stroke="white" stroke-width="3"/>${[0,10,20,30].map(q=>`<text x="${X(q)}" y="282" text-anchor="middle" font-size="14" fill="#5c7290">${q}</text>`).join('')}<text x="342" y="313" text-anchor="middle" font-size="15" fill="#5f7390">練習題數</text><text x="30" y="28" font-size="14" fill="#5f7390">及格機率</text></svg>`;
+  document.getElementById('qCount').textContent=state.questions+' 題';
+  document.getElementById('probValue').textContent=Math.round(p*100)+'%';
+  document.getElementById('probClass').textContent=p>=.5?'1｜及格':'0｜未及格';
+  document.getElementById('probClass').style.color=p>=.5?'#20805c':'#b87c35';
+}
+
+// Recalculate accuracy after correcting one simulated prediction.
+// 讓學生修正一筆預測並立即看到 Accuracy 改變。
+function renderAccuracy(){
+  const actual=[0,0,1,1,1];
+  const predicted=[0,0,1,1,state.fixed?1:0];
+  const correct=actual.filter((value,i)=>value===predicted[i]).length;
+  document.getElementById('accuracyCards').innerHTML=actual.map((y,i)=>`<button class="acc-card ${i===4?'tap':''}" data-action="accuracy-${i}"><strong>同學 ${i+1}</strong><small>真實：${y?'及格':'未及格'}</small><small>預測：${predicted[i]?'及格':'未及格'}</small><span class="status ${y===predicted[i]?'good':'bad'}">${y===predicted[i]?'✓ 猜對':'✕ 猜錯'}</span></button>`).join('');
+  document.getElementById('accCount').textContent=correct+' / 5';
+  document.getElementById('accValue').textContent=(correct/5*100).toFixed(0)+'%';
+}
+
+// Draw three recognizable fit patterns with different complexity.
+// 使用三種直觀的線條對照欠擬合、適當擬合與過度擬合。
+function renderFit(){
+  const curves=['M 14 127 L 190 98','M 14 158 C 60 135 125 72 190 43','M 14 155 Q 22 17 43 130 Q 68 197 86 93 Q 114 0 133 85 Q 154 174 170 34 Q 177 -4 190 50'];
+  const texts=['太簡單：線條沒抓到資料上升的方向。','剛剛好：線條抓到大致上升趨勢。','死背細節：為了每個點上下亂彎。'];
+  document.getElementById('fitCards').innerHTML=['太簡單','剛剛好','死背答案'].map((title,i)=>`<button class="fit-card ${i===state.fit?'selected':''}" data-action="fit-${i}"><strong>${title}</strong><svg viewBox="0 0 205 180" aria-label="${title}示意圖"><path d="M 14 164 L 194 164 M 14 164 L 14 17" stroke="#abb8c7" stroke-width="2" fill="none"/><path d="${curves[i]}" stroke="${i===state.fit?'#df9842':'#7aa6ce'}" stroke-width="5" fill="none" stroke-linecap="round"/>${[[20,156],[49,132],[77,120],[108,99],[137,81],[167,61]].map(([x,y])=>`<circle cx="${x}" cy="${y}" r="5" fill="#377ac1"/>`).join('')}</svg><small>${['欠擬合','適當擬合','過度擬合'][i]}</small></button>`).join('');
+  document.getElementById('fitDescription').textContent=texts[state.fit];
+}
+
+// Group toy data by proximity; no pass/fail labels are used here.
+// 依照距離把示意資料分群，完全不使用及格標籤。
+function renderClusters(){
+  const points=[[1,3],[1.4,5],[1.8,4],[2.2,6],[3.2,8],[3.5,10],[4.1,9],[5.5,16],[6.0,18],[6.5,17],[7.3,20],[7.0,16]];
+  const K=state.clusters;
+  let centers=(K===2?[[1.4,5],[6.4,17]]:[[1.6,4],[3.6,9],[6.5,18]]).map(p=>p.slice());
+  let labels=Array(points.length).fill(0);
+  for(let step=0;step<9;step++){
+    labels=points.map(([x,y])=>centers.reduce((best,c,i)=>((x-c[0])**2+((y-c[1])/3)**2 < (x-centers[best][0])**2+((y-centers[best][1])/3)**2)?i:best,0));
+    centers=centers.map((c,i)=>{const members=points.filter((p,j)=>labels[j]===i);return members.length?[members.reduce((s,p)=>s+p[0],0)/members.length,members.reduce((s,p)=>s+p[1],0)/members.length]:c;});
+  }
+  const colors=['#3a7ec4','#dc9c4d','#43a47d'];
+  const X=x=>76+x*63;
+  const Y=y=>274-y*10;
+  const circles=points.map(([x,y],i)=>`<circle cx="${X(x)}" cy="${Y(y)}" r="9" fill="${colors[labels[i]]}" stroke="white" stroke-width="2"/>`).join('');
+  const crosses=centers.map(([x,y],i)=>`<path d="M ${X(x)-10} ${Y(y)-10} L ${X(x)+10} ${Y(y)+10} M ${X(x)+10} ${Y(y)-10} L ${X(x)-10} ${Y(y)+10}" stroke="${colors[i]}" stroke-width="6" stroke-linecap="round"/>`).join('');
+  document.getElementById('clusterGraph').innerHTML=`<svg viewBox="0 0 660 330" aria-label="K-means 分群散佈圖"><line x1="65" y1="280" x2="620" y2="280" stroke="#a5b4c8" stroke-width="2"/><line x1="65" y1="280" x2="65" y2="29" stroke="#a5b4c8" stroke-width="2"/><text x="342" y="310" font-size="14" fill="#60738d" text-anchor="middle">讀書時數</text><text x="30" y="24" font-size="14" fill="#60738d">練習題數</text>${circles}${crosses}<text x="480" y="37" font-size="13" fill="#7186a1">X = 群中心</text></svg>`;
+  document.getElementById('cluster-2').classList.toggle('active',K===2);
+  document.getElementById('cluster-3').classList.toggle('active',K===3);
+}
+
+// Keep each quiz to three concise questions with hints before explanations.
+// 每節只放三題；答錯先提示，答對才給完整說明。
+const quizzes={
+  1:[
+    {q:'讀書時數是 X，小考分數是什麼？',choices:['答案 y','模型的名字','電腦的大小'],answer:0,hint:'模型要猜的是哪一欄？',why:'小考分數是我們希望預測的答案 y；讀書時數是已知輸入 X。'},
+    {q:'要怎麼知道模型能否預測新資料？',choices:['只看訓練集','拿沒看過的測試集檢查','把所有資料直接刪掉'],answer:1,hint:'練習題都看過答案，還能算正式測驗嗎？',why:'模型要用沒看過的測試資料驗收，才能比較公平地知道預測能力。'},
+    {q:'比較兩個迴歸模型，哪個 MSE 通常較好？',choices:['MSE = 100','MSE = 5','MSE 越大越好'],answer:1,hint:'MSE 是預測錯誤的平方平均，錯得越小越好。',why:'同一份測試資料和相同單位下，MSE 越小代表平均平方誤差越少。'}
+  ],
+  2:[
+    {q:'預測「及格／未及格」是哪一種任務？',choices:['回歸','分類','畫圖'],answer:1,hint:'答案是兩個類別，不是分數大小。',why:'分類是從幾種選項中選一種；本例有「及格」和「未及格」兩類。'},
+    {q:'5 位同學中猜對 4 位，Accuracy 是多少？',choices:['20%','80%','400%'],answer:1,hint:'Accuracy＝猜對的人數 ÷ 全部人數。',why:'4 ÷ 5 = 0.8，因此 Accuracy＝80%。'},
+    {q:'K-means 分群需要先告訴模型誰及格嗎？',choices:['一定要','不需要','一定要先算 MSE'],answer:1,hint:'分群的目標是把位置相近的資料放一起。',why:'K-means 可以只看資料的位置與距離分組，不需要先提供及格標籤。'}
+  ]
+};
+
+// Update a single quiz without revealing correct answers on a wrong click.
+// 只更新當前題目；選錯不公布答案，選對才解釋原因。
+function renderQuiz(section){
+  const item=state.quiz[section];
+  const q=quizzes[section][item.at];
+  const previous=item.done[item.at];
+  const node=document.querySelector(`.quiz[data-quiz="${section}"]`);
+  node.innerHTML=`<div class="quiz-progress">第 ${item.at+1} / 3 題</div><div class="quiz-question">${q.q}</div><div class="quiz-answers">${q.choices.map((option,i)=>`<button data-action="quiz-${section}-${i}" class="quiz-choice ${previous?.correct&&i===q.answer?'right':''}">${option}</button>`).join('')}</div><div class="quiz-feedback ${previous?(previous.correct?'good':'hint'):''}">${previous?(previous.correct?'答對了！'+q.why:'再試一次：'+q.hint):'先選一個答案，再看看回饋。'}</div><div class="quiz-toolbar"><span>答錯給提示，答對才有解析</span><button data-action="quiz-next-${section}" ${!previous?.correct?'disabled':''}>${item.at===2?'重新練習':'下一題 →'}</button></div>`;
+}
+
+// Handle clicks by their action name to avoid repeated event registration.
+// 透過同一個事件入口處理所有按鈕，避免重複綁定。
+document.addEventListener('click',event=>{
+  const button=event.target.closest('[data-action]');
+  if(!button)return;
+  const action=button.dataset.action;
+  if(action==='focus-x'||action==='focus-y')setFocus(action.slice(-1));
+  if(action==='clean-off'||action==='clean-on'){state.clean=action==='clean-on';renderClean();}
+  if(action==='split-8'||action==='split-7'){state.train=Number(action.slice(-1));renderSplit();}
+  if(action==='reg-play')animateRegression();
+  if(action==='reg-reset'){state.reg=0;renderRegression();}
+  if(action.startsWith('metric-')){state.metric=action.split('-')[1];renderMetrics();}
+  if(action.startsWith('binary-')){state.binary=Number(action.split('-')[1]);renderBinary();}
+  if(action.startsWith('accuracy-')){if(action==='accuracy-4')state.fixed=!state.fixed;renderAccuracy();}
+  if(action.startsWith('fit-')){state.fit=Number(action.split('-')[1]);renderFit();}
+  if(action.startsWith('cluster-')){state.clusters=Number(action.split('-')[1]);renderClusters();}
+  if(action.startsWith('quiz-next-')){
+    const section=Number(action.split('-')[2]);
+    const item=state.quiz[section];
+    if(!item.done[item.at]?.correct)return;
+    if(item.at===2){item.at=0;item.done={};}else item.at++;
+    renderQuiz(section);
+  }
+  if(/^quiz-[12]-[012]$/.test(action)){
+    const [,section,choice]=action.split('-').map(Number);
+    const item=state.quiz[section];
+    const q=quizzes[section][item.at];
+    if(item.done[item.at]?.correct)return;
+    item.done[item.at]={correct:choice===q.answer};
+    renderQuiz(section);
+  }
+});
+
+// Adjust the probability visualization when its slider changes.
+// 拉動題數滑桿時，同步更新曲線與分類結果。
+document.getElementById('qSlider').addEventListener('input',event=>{state.questions=Number(event.target.value);renderProbability();});
+// Move between whole slides with the keyboard or footer buttons.
+// 透過方向鍵或頁尾按鈕，切換完整投影片。
+document.getElementById('prev').addEventListener('click',()=>showPage(state.page-1));
+document.getElementById('next').addEventListener('click',()=>showPage(state.page+1));
+document.addEventListener('keydown',event=>{
+  if(['INPUT','TEXTAREA'].includes(document.activeElement.tagName))return;
+  if(event.key==='ArrowRight'){event.preventDefault();showPage(state.page+1);}
+  if(event.key==='ArrowLeft'){event.preventDefault();showPage(state.page-1);}
+});
+// Render all visuals and display the first slide.
+// 建立所有互動圖解並顯示第一頁。
+setFocus('x'); renderClean(); renderSplit(); renderRegression(); renderMetrics(); renderBinary(); renderProbability(); renderAccuracy(); renderFit(); renderClusters(); showPage(0);
+</script></body></html>
