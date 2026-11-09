@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>04｜YOLO 物件偵測：滑鼠框選練習（自由管理圖片與類別）</title>
+<title>04｜YOLO 物件偵測：滑鼠框選與續標工具</title>
 <style>
 :root{font-family:"Noto Sans TC","Microsoft JhengHei",system-ui,sans-serif;color:#1d2939;background:#f4f7fb}
 *{box-sizing:border-box}body{margin:0}header{padding:20px max(20px,calc((100vw - 1320px)/2));background:#fff;border-bottom:1px solid #dce5f0}
@@ -25,14 +25,21 @@ button:hover{background:#dceaff}button:disabled{opacity:.45;cursor:not-allowed}.
 .viewer{display:flex;flex-direction:column;gap:9px;min-width:0}.stage{min-height:420px;background:#e8edf5;border:1px dashed #c8d2e2;border-radius:10px;display:flex;align-items:center;justify-content:center;overflow:auto;padding:10px}
 canvas{background:#fff;max-width:100%;height:auto;border-radius:5px;cursor:crosshair;touch-action:none;box-shadow:0 4px 12px rgba(10,28,50,.14)}
 .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.toolbar select{width:auto}.status{font-size:12px;line-height:1.5;color:#426385;min-height:20px}
-.chips{display:flex;flex-wrap:wrap;gap:5px}.chip{font-size:11px;background:#edf2f8;padding:5px 7px;border-radius:6px}.foot{font-size:12px;line-height:1.65;color:#607288}
+.chips{display:flex;flex-wrap:wrap;gap:6px}.chip{font-size:11px;background:#edf2f8;padding:5px 7px;border-radius:6px}
+.box-chip{display:flex;align-items:center;gap:5px}.box-chip select{font-size:11px;padding:4px;max-width:130px}.box-chip button{padding:3px 6px;color:#a33c39;background:#fff3f0;border-color:#f1cdc6}.foot{font-size:12px;line-height:1.65;color:#607288}
 @media(max-width:900px){main{grid-template-columns:1fr}.stage{min-height:260px}header{padding:18px}}
 </style>
 </head>
 <body>
-<header><h1>04｜YOLO 物件偵測：滑鼠框選練習</h1><p>本機 HTML、免登入、可離線操作。自行新增／修改／刪除類別、手動指定 Train／Val，並可移除不想標的圖片，再以滑鼠框選物件；完成後匯出包含圖片、標註與 <code>data.yaml</code> 的完整 YOLO 資料集 ZIP。</p></header>
+<header><h1>04｜YOLO 物件偵測：滑鼠框選練習</h1><p>本機 HTML、免登入、可離線操作。自行新增／修改／刪除類別、手動指定 Train／Val，並可移除不想標的圖片，再以滑鼠框選物件；完成後匯出包含圖片、標註與 <code>data.yaml</code> 的完整 YOLO 資料集 ZIP；下次可重新匯入 ZIP，繼續標註。</p></header>
 <main>
 <aside class="panel">
+<section><h2>繼續上次標註：匯入 YOLO ZIP</h2>
+<p class="sub">選擇本工具先前匯出的 <code>04_YOLO標註資料集.zip</code>，即可還原圖片、已畫的框、類別及 Train／Val 分組。還原後可以繼續加照片、修改框，再匯出新的完整 ZIP。尚未全部標完時，可以先用下方按鈕下載進度備份。</p>
+<button class="primary" id="importZip" style="width:100%">匯入之前的標註 ZIP，繼續編輯</button>
+<button id="saveProgress" style="width:100%;margin-top:7px">下載目前標註進度 ZIP（可未完成）</button>
+<input id="datasetZipFile" type="file" accept=".zip,application/zip,application/x-zip-compressed" hidden>
+<p class="hint" id="importInfo">匯入前會先檢查 ZIP；若目前已有標註，會先要求確認，避免意外覆蓋。</p></section>
 <section><h2>1. 加入圖片，選擇 Train／Val</h2>
 <p class="sub">可一次或分次加入 JPG／PNG／WebP。新圖片預設 Train（不會依檔名判斷）；請在圖片列表自行選擇 Train／Val。不想標的照片按右側「×」移除，匯出時不會包含它。</p>
 <input id="imageFiles" type="file" accept="image/jpeg,image/png,image/webp" multiple aria-label="選擇標註圖片">
@@ -52,14 +59,14 @@ canvas{background:#fff;max-width:100%;height:auto;border-radius:5px;cursor:cross
 <section><h2>3. 匯出完整 YOLO 資料集</h2>
 <button class="primary" id="exportZip" style="width:100%">匯出圖片＋標註＋data.yaml ZIP</button>
 <p class="sub">會依照每張的 Train／Val 選擇，建立 <code>images/train</code>、<code>images/val</code>、<code>labels/train</code>、<code>labels/val</code>，以及自動產生的 <code>data.yaml</code>。</p>
-<div class="warning">關閉網頁前請下載 ZIP。類別清單可保存在瀏覽器、匯出 JSON 或下載含自訂預設類別的 HTML，但載入的圖片與畫框不會自動保存。Train／Val 都至少需有一張圖片。</div></section>
+<div class="warning">關閉網頁前請下載「標註進度 ZIP」，或在全部完成後匯出「YOLO 資料集 ZIP」。兩種 ZIP 都能在下次匯入續標，但只有後者可直接拿去訓練。圖片與畫框不會自動儲存在瀏覽器，請勿只依賴類別設定。Train／Val 都至少需有一張圖片。</div></section>
 </aside>
 <section class="panel viewer">
 <div class="toolbar"><strong id="filename">尚未加入圖片</strong><span class="hint" id="dimension"></span></div>
 <div class="stage"><canvas id="canvas" width="800" height="450" aria-label="拖曳滑鼠畫出物件邊界框"></canvas></div>
 <div class="toolbar"><button id="undo">撤銷上一個框</button><button id="clear">清除這張全部框</button><button id="done" class="primary">完成本張標註</button><button id="next">下一張 →</button></div>
 <div class="chips" id="boxList"></div><div class="status" id="status">請選擇圖片，再於物件左上角按住滑鼠，拖曳至右下角。</div>
-<div class="foot">每個要偵測的物件各畫一個完整框。沒有指定物件的圖片，可保留 0 框並按「完成本張標註」。調整框或更換類別後要重新按完成。少量圖片只能作為練習，不能用其驗證結果代表模型實際準確率。左側列表可切換 Train／Val 或移除不想標的圖片。</div>
+<div class="foot">每個要偵測的物件各畫一個完整框。沒有指定物件的圖片，可保留 0 框並按「完成本張標註」。可在下方逐框更換類別或刪除舊框；調整後要重新按完成。少量圖片只能作為練習，不能用其驗證結果代表模型實際準確率。左側列表可切換 Train／Val 或移除不想標的圖片。</div>
 </section></main>
 <script>
 'use strict';
@@ -69,7 +76,7 @@ const OLD_STORAGE_KEY='04_yolo_annotation_classes_v2_'+DEFAULT_CLASSES.join('_')
 const COLORS=['#ee6b3b','#159570','#3568d4','#a155b4','#d15353','#008ca3','#af6a19','#617397','#d75ca9','#64a322'];
 const $=id=>document.getElementById(id);
 let classNames=loadStoredClasses();
-let images=[],current=-1,drag=null, exporting=false;
+let images=[],current=-1,drag=null, exporting=false,importing=false;
 const canvas=$('canvas'),ctx=canvas.getContext('2d');
 function msg(s){$('status').textContent=s}
 function validClasses(v){return Array.isArray(v)&&v.length>0&&v.length<=100&&v.every(x=>typeof x==='string'&&x.trim()!==''&&x.trim().length<=48&&!/[<>&\x00-\x1f]/.test(x))&&new Set(v.map(x=>x.trim().toLowerCase())).size===v.length}
@@ -119,7 +126,7 @@ $('saveCustomHtml').onclick=()=>{const html='<!doctype html>\n'+document.documen
 $('loadClasses').onclick=()=>$('classFile').click();
 $('classFile').addEventListener('change',async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;try{
  const data=JSON.parse(await f.text()),names=data.classes;if(!validClasses(names))throw Error('格式應為 {"classes":["person","cat",...]}，且名稱不能重複。');
- if(images.some(im=>im.boxes.length)&&!confirm('匯入會改變類別編號的意義。現有方框將清空，確定繼續？'))return;
+ if(images.some(im=>im.boxes.length||im.done)&&!confirm('匯入會改變類別編號的意義。現有方框將清空，確定繼續？'))return;
  images.forEach(im=>{im.boxes=[];im.done=false});classNames=names.map(x=>x.trim());classUI();list();render();storeClasses();msg('已匯入類別設定，請重新標註圖片。')
  }catch(err){alert('無法匯入類別設定：'+err.message)}});
 function list(){const out=$('filelist');out.replaceChildren();images.forEach((entry,i)=>{
@@ -152,16 +159,52 @@ function rect(b){const c=color(b.cls),x=b.x*canvas.width,y=b.y*canvas.height;ctx
  const text=`${b.cls} ${classNames[b.cls]}`,yy=Math.max(0,y-22);ctx.font='bold 13px sans-serif';ctx.fillRect(x,yy,ctx.measureText(text).width+9,22);ctx.fillStyle='#fff';ctx.fillText(text,x+4,yy+15)}
 function render(){ctx.clearRect(0,0,canvas.width,canvas.height);const e=images[current];if(!e||!e.img){ctx.fillStyle='#526479';ctx.font='16px sans-serif';ctx.fillText('請先選擇圖片',20,35);$('boxList').textContent='';return}
  ctx.drawImage(e.img,0,0,canvas.width,canvas.height);e.boxes.forEach(rect);if(drag){const p=drag.end||drag.start;ctx.save();ctx.setLineDash([5,4]);rect({cls:drag.cls,x:Math.min(p.x,drag.start.x),y:Math.min(p.y,drag.start.y),w:Math.abs(p.x-drag.start.x),h:Math.abs(p.y-drag.start.y)});ctx.restore()}
- $('boxList').replaceChildren();e.boxes.forEach((b,i)=>{const n=document.createElement('span');n.className='chip';n.textContent=`框 ${i+1}：${classNames[b.cls]}`;$('boxList').append(n)});if(!e.boxes.length)$('boxList').textContent='這張尚未畫框；若不含需要偵測的物件，可保留 0 框。';
+ // EN: Rebuild editable controls for every box so imported annotations can be corrected.
+ // 中：替每個標註框重新建立可編輯控制項，讓先前匯入的框也能修改。
+ $('boxList').replaceChildren();
+ // EN: Provide a class selector and delete button for each individual box.
+ // 中：每個框各自提供類別選單與刪除按鈕。
+ e.boxes.forEach((b,i)=>{
+  // EN: Keep annotation controls grouped with their box number.
+  // 中：將標註框編號與操作元件放在一起。
+  const group=document.createElement('span');group.className='chip box-chip';
+  // EN: Show the current box number to identify the annotation being edited.
+  // 中：顯示目前框號，方便辨識正在修改哪一個標註。
+  const name=document.createElement('b');name.textContent=`框 ${i+1}`;
+  // EN: Allow the box class to be changed without drawing it again.
+  // 中：允許直接更改框的類別，不必重新畫框。
+  const selector=document.createElement('select');selector.setAttribute('aria-label',`修改框 ${i+1} 的類別`);
+  // EN: Populate the selector from the current class definitions.
+  // 中：依照目前的類別清單建立選項。
+  classNames.forEach((cls,j)=>{const opt=document.createElement('option');opt.value=j;opt.textContent=cls;selector.append(opt)});
+  // EN: Display the label originally assigned to this box.
+  // 中：顯示這個框原先指定的類別。
+  selector.value=String(b.cls);
+  // EN: Mark the image unfinished after changing a box label.
+  // 中：修改框的類別後，將圖片標示為尚未確認完成。
+  selector.onchange=()=>{b.cls=Number(selector.value);e.done=false;list();render();msg(`框 ${i+1} 已修改類別，請重新按「完成本張標註」。`)};
+  // EN: Remove only the selected box while preserving the others.
+  // 中：只刪除指定框，保留同一張圖片上的其他標註。
+  const remove=document.createElement('button');remove.type='button';remove.textContent='×';remove.title=`刪除框 ${i+1}`;
+  // EN: Update the image and completion state after a box is removed.
+  // 中：移除框後更新圖片與完成狀態。
+  remove.onclick=()=>{e.boxes.splice(i,1);e.done=false;list();render();msg(`已刪除框 ${i+1}，請重新確認標註。`)};
+  // EN: Add the edit controls to the annotation list.
+  // 中：將編輯控制項加入標註框清單。
+  group.append(name,selector,remove);$('boxList').append(group);
+ });
+ // EN: Explain how to handle images containing no target objects.
+ // 中：說明沒有目標物件的圖片可以如何標註。
+ if(!e.boxes.length)$('boxList').textContent='這張尚未畫框；若不含需要偵測的物件，可保留 0 框。';
 }
 canvas.addEventListener('pointerdown',e=>{if(current<0||!images[current].img)return;e.preventDefault();canvas.setPointerCapture(e.pointerId);drag={start:coords(e),end:coords(e),cls:Number($('cls').value)};render()});
 canvas.addEventListener('pointermove',e=>{if(!drag)return;drag.end=coords(e);render()});
 canvas.addEventListener('pointerup',e=>{if(!drag)return;const p=coords(e),b={cls:drag.cls,x:Math.min(p.x,drag.start.x),y:Math.min(p.y,drag.start.y),w:Math.abs(p.x-drag.start.x),h:Math.abs(p.y-drag.start.y)};drag=null;
  if(b.w>.008&&b.h>.008){images[current].boxes.push(b);images[current].done=false;msg('已新增方框，請按「完成本張標註」。')}else msg('框太小，請拉大範圍。');render();list()});
 $('imageFiles').addEventListener('change',e=>{const fs=[...e.target.files];let duplicates=0;for(const f of fs){if(!['image/jpeg','image/png','image/webp'].includes(f.type))continue;
- if(images.some(x=>x.file.name.toLowerCase()===f.name.toLowerCase())){duplicates++;continue}
+ if(images.some(x=>x.file.name.replace(/\.[^.]+$/,'').toLowerCase()===f.name.replace(/\.[^.]+$/,'').toLowerCase())){duplicates++;continue}
  images.push({file:f,url:URL.createObjectURL(f),img:null,boxes:[],done:false,split:'train'});
- }list();if(current<0&&images.length)choose(0);e.target.value='';if(duplicates)msg(`有 ${duplicates} 個重複檔名未加入，避免同名圖片互相覆蓋。`)});
+ }list();if(current<0&&images.length)choose(0);e.target.value='';if(duplicates)msg(`有 ${duplicates} 個重複主檔名未加入，避免同名標註互相覆蓋。`)});
 $('undo').onclick=()=>{if(current<0)return;images[current].boxes.pop();images[current].done=false;render();list()};
 $('clear').onclick=()=>{if(current<0)return;if(confirm('確定清除這張的全部框？')){images[current].boxes=[];images[current].done=false;render();list()}};
 $('done').onclick=()=>{if(current<0)return;const e=images[current];if(!e.boxes.length&&!confirm('這張圖片確認沒有需要偵測的物件，標記為 0 框背景圖嗎？'))return;
@@ -176,6 +219,345 @@ function makeZip(files){const enc=new TextEncoder(),chunks=[],central=[];let off
  }const csize=central.reduce((s,a)=>s+a.length,0);const end=new Uint8Array([...w32(0x06054b50),...w16(0),...w16(0),...w16(files.length),...w16(files.length),...w32(csize),...w32(offset),...w16(0)]);
  return new Blob([...chunks,...central,end],{type:'application/zip'})}
 function asText(name,text){return {name,body:new TextEncoder().encode(text)}}
+
+// EN: Assemble the YOLO dataset files for both final exports and resumable backups.
+// 中：共用同一份檔案打包流程，產生正式訓練資料集及續標備份。
+async function collectDatasetFiles(){
+ // EN: Preserve the current class definitions in both standard YOLO metadata files.
+ // 中：以標準 YOLO 設定檔保存目前所有類別名稱。
+ const yaml=['# YOLO detection dataset.\n','train: images/train\n','val: images/val\n','names:\n',...classNames.map((name,i)=>`  ${i}: ${JSON.stringify(name)}\n`)].join('');
+ // EN: Include the YAML file and plain-text class list for compatibility.
+ // 中：同時保存 YAML 與類別清單，維持既有資料集相容性。
+ const files=[asText('data.yaml',yaml),asText('classes.txt',classNames.join('\n')+'\n')];
+ // EN: Record the complete image and annotation contents, including unfinished work.
+ // 中：保存所有圖片及已畫的框，包含尚未標示完成的圖片。
+ for(const item of images){
+  // EN: Convert each top-left bounding box back into YOLO center coordinates.
+  // 中：將每個框轉換回 YOLO 中心點標註座標。
+  const stem=item.file.name.replace(/\.[^.]+$/,''),rows=item.boxes.map(b=>[b.cls,(b.x+b.w/2).toFixed(6),(b.y+b.h/2).toFixed(6),b.w.toFixed(6),b.h.toFixed(6)].join(' ')).join('\n');
+  // EN: Store original image bytes and the associated text labels.
+  // 中：同時保存原始圖片的位元內容與對應的標註文字檔。
+  files.push({name:`images/${item.split}/${item.file.name}`,body:new Uint8Array(await item.file.arrayBuffer())});
+  // EN: Write an empty label file for images containing no labeled target objects.
+  // 中：沒有物件框的圖片也要保留空白標註檔。
+  files.push(asText(`labels/${item.split}/${stem}.txt`,rows?rows+'\n':''));
+ }
+ // EN: Return files without downloading or changing the editor state.
+ // 中：回傳待打包檔案，不自行下載，也不變更畫面標註。
+ return files;
+}
+
+// EN: Save an unfinished annotation session with per-image completion states.
+// 中：允許備份尚未完成的標註工作，同時保存每張圖片的完成狀態。
+$('saveProgress').onclick=async()=>{
+ // EN: Require at least one image and avoid overlapping backup operations.
+ // 中：至少需要一張圖片，且避免重複執行備份。
+ if(!images.length){alert('請先加入圖片再儲存進度。');return}
+ // EN: Disable the backup control while gathering local image data.
+ // 中：處理圖片時先停用備份按鈕。
+ const button=$('saveProgress');button.disabled=true;
+ // EN: Reuse the same YOLO file layout to keep this archive importable.
+ // 中：沿用既有 YOLO 資料夾結構，讓備份也能由同一個匯入功能讀回。
+ try{
+  // EN: Collect all images and their annotations, even if not yet finalized.
+  // 中：收集全部圖片及標註，不要求每張圖片都已按「完成」。
+  const files=await collectDatasetFiles();
+  // EN: Store completion flags and the active photo in an optional session record.
+  // 中：額外記錄每張圖片的完成狀態及上次選取的圖片。
+  const session={format:'04_yolo_progress_v1',current:current<0?null:`images/${images[current].split}/${images[current].file.name}`,images:images.map(im=>({path:`images/${im.split}/${im.file.name}`,done:im.done}))};
+  // EN: Add this record only to progress backups, not to training dataset exports.
+  // 中：只在續標備份內加入進度檔，不影響正式訓練資料集的格式。
+  files.push(asText('標註進度.json',JSON.stringify(session,null,2)));
+  // EN: Download a dedicated ZIP filename to distinguish backups from training exports.
+  // 中：使用不同的檔名，讓學生分辨續標備份與訓練資料集。
+  saveBlob(makeZip(files),'04_YOLO標註進度.zip');
+  // EN: Confirm that the backup includes unfinished annotations.
+  // 中：提示備份包含未完成的標註，稍後仍可匯入繼續編輯。
+  msg(`已備份 ${images.length} 張圖片與全部現有框。下次可匯入這份進度 ZIP 繼續標註。`);
+ }catch(error){
+  // EN: Report failed backups without marking incomplete images as finished.
+  // 中：備份失敗時顯示原因，不擅自更改完成狀態。
+  alert('儲存進度失敗：'+error.message);
+ }finally{
+  // EN: Restore the backup control after completion or failure.
+  // 中：不論結果如何，都恢復備份按鈕。
+  button.disabled=false;
+ }
+};
+
+
+// EN: Read central-directory records so old archives and standard ZIP layouts are supported.
+// 中：解析 ZIP 中央目錄，支援先前匯出的檔案及一般 ZIP 排列方式。
+async function readZipEntries(file){
+ // EN: Load the selected local ZIP without uploading it to a server.
+ // 中：在本機讀取選取的 ZIP，不會將內容上傳至伺服器。
+ const bytes=new Uint8Array(await file.arrayBuffer()),v=new DataView(bytes.buffer),entries=new Map();
+ // EN: Locate the end-of-central-directory marker, accounting for optional ZIP comments.
+ // 中：尋找中央目錄結尾標記，同時支援 ZIP 備註欄位。
+ let end=-1;
+ // EN: Search only the legal ZIP comment range at the end of the file.
+ // 中：只搜尋 ZIP 格式允許的檔尾備註範圍。
+ for(let i=bytes.length-22;i>=Math.max(0,bytes.length-65557);i--){
+  // EN: Use little-endian ZIP fields to verify the actual end record.
+  // 中：以 ZIP 的小端序欄位確認真正的檔尾紀錄。
+  if(v.getUint32(i,true)===0x06054b50&&i+22+v.getUint16(i+20,true)===bytes.length){end=i;break}
+ }
+ // EN: Reject invalid, multi-disk, or ZIP64 archives with an actionable error.
+ // 中：遇到無效、多磁碟或 ZIP64 格式時提供明確錯誤訊息。
+ if(end<0)throw Error('找不到有效的 ZIP 中央目錄。');
+ // EN: Read the entry count and central directory bounds.
+ // 中：取得檔案數量與中央目錄位置。
+ const count=v.getUint16(end+10,true),size=v.getUint32(end+12,true),offset=v.getUint32(end+16,true);
+ // EN: Check for unsupported ZIP64 and damaged directory boundaries.
+ // 中：檢查不支援的 ZIP64 與損毀的目錄範圍。
+ if(count===65535||size===0xffffffff||offset===0xffffffff||v.getUint16(end+8,true)!==count||offset+size>end)throw Error('ZIP 格式或中央目錄不符合預期（暫不支援 ZIP64／多磁碟）。');
+ // EN: Decode entry names as UTF-8, matching the ZIPs exported by this tool.
+ // 中：以 UTF-8 解碼檔名，與本工具匯出的 ZIP 格式一致。
+ const decoder=new TextDecoder('utf-8',{fatal:true});
+ // EN: Walk every file entry using its central-directory information.
+ // 中：依中央目錄逐一讀取各個檔案。
+ let p=offset;
+ // EN: Parse and validate the central directory before trusting its paths.
+ // 中：先檢查中央目錄結構及檔案路徑是否合法。
+ for(let i=0;i<count;i++){
+  // EN: Ensure fixed-size headers are inside the file and have the correct signature.
+  // 中：檢查標頭長度與 ZIP 簽章是否正確。
+  if(p+46>bytes.length||v.getUint32(p,true)!==0x02014b50)throw Error('ZIP 中央目錄已損毀。');
+  // EN: Get the compression method, CRC, sizes, name length, and local header offset.
+  // 中：讀取壓縮方式、CRC、檔案大小、名稱長度與資料位置。
+  const method=v.getUint16(p+10,true),crc=v.getUint32(p+16,true),compressed=v.getUint32(p+20,true),original=v.getUint32(p+24,true);
+  // EN: Read variable-length central-directory fields.
+  // 中：讀取中央目錄中的變動長度欄位。
+  const nameLength=v.getUint16(p+28,true),extra=v.getUint16(p+30,true),comment=v.getUint16(p+32,true),local=v.getUint32(p+42,true);
+  // EN: Check the full record range and decode the filename.
+  // 中：確認紀錄範圍完整，再解碼檔案名稱。
+  if(p+46+nameLength+extra+comment>bytes.length)throw Error('ZIP 內檔名或附加資料不完整。');
+  // EN: Reject unsafe paths, duplicates, and encrypted or unsupported compression formats.
+  // 中：拒絕不安全路徑、重複檔名、加密或不支援的壓縮格式。
+  const name=decoder.decode(bytes.subarray(p+46,p+46+nameLength));
+  // EN: Reject absolute paths, parent-directory traversal, and path separators used by Windows.
+  // 中：禁止絕對路徑、上層目錄跳脫與 Windows 反斜線路徑。
+  if(!name||name.startsWith('/')||name.includes('\\')||name.split('/').some(x=>x==='..'||x==='.')||entries.has(name))throw Error(`ZIP 路徑不合法或重複：${name}`);
+  // EN: Ignore directory markers while preserving every actual file.
+  // 中：略過資料夾記號，但保留所有實際檔案。
+  if(!name.endsWith('/')){
+   // EN: Reject encryption, oversized ZIP64 entries, or unsupported compressors.
+   // 中：禁止加密、ZIP64 大檔或未知壓縮方式。
+   if(v.getUint16(p+8,true)&1||!([0,8].includes(method))||compressed===0xffffffff||original===0xffffffff)throw Error(`ZIP 項目不支援：${name}`);
+   // EN: Locate the compressed bytes using the local file header.
+   // 中：依本地檔案標頭定位實際位元資料。
+   if(local+30>bytes.length||v.getUint32(local,true)!==0x04034b50)throw Error(`ZIP 項目標頭損毀：${name}`);
+   // EN: Skip the local filename and optional extra fields.
+   // 中：跳過本地檔名與附加欄位。
+   const start=local+30+v.getUint16(local+26,true)+v.getUint16(local+28,true);
+   // EN: Reject entries whose content extends beyond the archive.
+   // 中：拒絕內容超出 ZIP 檔案範圍的項目。
+   if(start+compressed>bytes.length)throw Error(`ZIP 項目內容不完整：${name}`);
+   // EN: Copy the original bytes or decompress standard DEFLATE data when available.
+   // 中：直接複製未壓縮資料，或使用瀏覽器支援的 DEFLATE 解壓縮。
+   let body=bytes.slice(start,start+compressed);
+   // EN: Handle standard compressed ZIP files without requiring an external library.
+   // 中：不依賴額外套件，處理一般 ZIP 的壓縮內容。
+   if(method===8){
+    // EN: Require browser support for raw DEFLATE streams.
+    // 中：確認瀏覽器支援原始 DEFLATE 解壓縮。
+    if(typeof DecompressionStream==='undefined')throw Error('此瀏覽器不支援壓縮 ZIP，請使用本工具直接匯出的 ZIP。');
+    // EN: Decode the compressed entry as a byte stream.
+    // 中：將壓縮項目還原為位元資料。
+    body=new Uint8Array(await new Response(new Blob([body]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer());
+   }
+   // EN: Validate both the size and CRC before accepting the recovered file.
+   // 中：以檔案大小及 CRC 驗證還原內容，避免使用損毀標註。
+   if(body.length!==original||crc32(body)!==crc)throw Error(`ZIP 檔案校驗失敗：${name}`);
+   // EN: Store verified entries using their exact archive paths.
+   // 中：按照 ZIP 內原始路徑保存已驗證的項目。
+   entries.set(name,body);
+  }
+  // EN: Advance to the next central-directory entry.
+  // 中：前進到下一個中央目錄紀錄。
+  p+=46+nameLength+extra+comment;
+ }
+ // EN: Return all validated files without modifying the current annotation session.
+ // 中：回傳已驗證檔案，完全不變更目前的標註工作。
+ return entries;
+}
+
+// EN: Convert a previously exported YOLO ZIP into annotation records.
+// 中：將先前匯出的 YOLO ZIP 還原成標註工具使用的資料。
+function restoreDataset(entries){
+ // EN: Decode the class list supplied by this annotation tool.
+ // 中：從原本匯出的類別文字檔還原物件類別。
+ const decode=new TextDecoder('utf-8',{fatal:true});
+ // EN: Prefer classes.txt; use the generated YAML names when the text list is missing.
+ // 中：優先讀取 classes.txt；若缺少則嘗試解析 data.yaml 類別清單。
+ let classes=entries.has('classes.txt')?decode.decode(entries.get('classes.txt')).trimEnd().split(/\r?\n/):null;
+ // EN: Read class names from the simple YAML format exported by this tool.
+ // 中：從本工具產生的簡單 YAML 格式讀取類別名稱。
+ if(!classes&&entries.has('data.yaml')){
+  // EN: Locate numeric YAML class identifiers and their names.
+  // 中：找出 YAML 中的類別編號與名稱。
+  classes=[];
+  // EN: Parse only class-name mapping lines, rather than executing YAML content.
+  // 中：僅解析類別名稱對照列，不執行 YAML 內的其他內容。
+  for(const line of decode.decode(entries.get('data.yaml')).split(/\r?\n/)){
+   // EN: Match the indexed names used by the tool's generated data.yaml.
+   // 中：辨識本工具輸出的 data.yaml 類別索引格式。
+   const match=line.match(/^\s*(\d+):\s*(.+?)\s*$/);
+   // EN: Ignore unrelated YAML directives.
+   // 中：忽略與類別無關的 YAML 設定。
+   if(!match)continue;
+   // EN: Decode JSON-quoted class names as exported by the current tool.
+   // 中：還原本工具使用 JSON 字串形式儲存的類別名稱。
+   const idx=Number(match[1]);classes[idx]=JSON.parse(match[2]);
+  }
+ }
+ // EN: Reject missing, invalid, or conflicting class definitions.
+ // 中：拒絕缺少、無效或互相衝突的類別設定。
+ if(!validClasses(classes))throw Error('找不到有效的 classes.txt 或 data.yaml 類別清單。');
+ // EN: Detect optional session metadata; older YOLO dataset ZIPs omit this file.
+ // 中：檢查選用的續標紀錄；舊版 YOLO 資料集沒有這個檔案也能匯入。
+ const session=entries.has('標註進度.json')?JSON.parse(decode.decode(entries.get('標註進度.json'))):null;
+ // EN: Validate the session marker and completion-state structure before restoring it.
+ // 中：先檢查續標記錄的格式與完成狀態欄位。
+ if(session&&(session.format!=='04_yolo_progress_v1'||!Array.isArray(session.images)||session.images.some(e=>typeof e.path!=='string'||typeof e.done!=='boolean')))throw Error('標註進度.json 的內容不正確。');
+ // EN: Index the previous completion flags by each image's full YOLO path.
+ // 中：依圖片在 ZIP 內的完整路徑整理完成狀態。
+ const completed=session?new Map(session.images.map(e=>[e.path,e.done])):null;
+ // EN: Identify labeled images in the exact folder layout exported by this tool.
+ // 中：依本工具匯出的資料夾結構尋找 Train／Val 圖片。
+ const restored=[],seen=new Set();
+ // EN: Read the verified archive entries without changing the active editor.
+ // 中：只讀取已驗證檔案，不立即改動目前的編輯畫面。
+ for(const [path,body] of entries){
+  // EN: Select image files under the two YOLO dataset splits.
+  // 中：只處理位於 Train 或 Val 資料夾內的圖片。
+  const match=path.match(/^images\/(train|val)\/([^/]+\.(?:jpe?g|png|webp))$/i);
+  // EN: Ignore YAML, labels, and non-image metadata entries.
+  // 中：忽略 YAML、標註文字與其他非圖片資料。
+  if(!match)continue;
+  // EN: Preserve the original split and image filename.
+  // 中：保留原本的資料分組與圖片檔名。
+  const split=match[1].toLowerCase(),name=match[2];
+  // EN: Protect against ambiguous image names across Train and Val.
+  // 中：防止 Train 與 Val 出現相同檔名而造成標註混淆。
+  if(seen.has(name.toLowerCase()))throw Error(`圖片檔名重複：${name}`);
+  // EN: Match image filename stems to their corresponding YOLO label files.
+  // 中：使用圖片的主檔名尋找對應的 YOLO 標註檔。
+  const stem=name.replace(/\.[^.]+$/,''),labelPath=`labels/${split}/${stem}.txt`;
+  // EN: Require existing annotation text to prevent silently discarding labels.
+  // 中：要求標註文字檔存在，避免不小心遺失標註框。
+  if(!entries.has(labelPath))throw Error(`找不到 ${name} 的標註檔：${labelPath}`);
+  // EN: Decode and parse every YOLO bounding box line.
+  // 中：解碼並解析這張圖片的所有 YOLO 座標。
+  const boxes=[];
+  // EN: Treat an empty text file as a valid background image with zero boxes.
+  // 中：空白標註檔代表背景圖片，應正確還原為零個框。
+  for(const line of decode.decode(entries.get(labelPath)).split(/\r?\n/)){
+   // EN: Skip blank lines without interpreting them as annotations.
+   // 中：跳過空白列，不將它當作標註資料。
+   if(!line.trim())continue;
+   // EN: Parse YOLO's class, center X/Y, width, and height fields.
+   // 中：依序讀取 YOLO 的類別、中心點與寬高欄位。
+   const values=line.trim().split(/\s+/).map(Number);
+   // EN: Ensure a valid class and five finite normalized values.
+   // 中：確認類別編號及五個必要數值皆有效。
+   if(values.length!==5||!values.every(Number.isFinite)||!Number.isInteger(values[0])||values[0]<0||values[0]>=classes.length)throw Error(`標註格式錯誤：${labelPath}`);
+   // EN: Convert the normalized center-based box to the editor's top-left format.
+   // 中：將 YOLO 的中心點座標轉為編輯器使用的左上角座標。
+   const [cls,cx,cy,w,h]=values,x=cx-w/2,y=cy-h/2;
+   // EN: Reject invalid bounding boxes while allowing tiny rounding differences.
+   // 中：排除不合法的框，並容許小幅浮點數四捨五入誤差。
+   if(w<=0||h<=0||x<-.000002||y<-.000002||x+w>1.000002||y+h>1.000002)throw Error(`標註框超出圖片範圍：${labelPath}`);
+   // EN: Preserve the box geometry for continued visual editing.
+   // 中：保存框的位置與大小，供後續繼續修改。
+   boxes.push({cls,x:Math.max(0,x),y:Math.max(0,y),w:Math.min(w,1-Math.max(0,x)),h:Math.min(h,1-Math.max(0,y))});
+  }
+  // EN: Infer the correct browser image MIME type from the file extension.
+  // 中：依副檔名決定瀏覽器圖片的 MIME 類型。
+  const type=/\.png$/i.test(name)?'image/png':/\.webp$/i.test(name)?'image/webp':'image/jpeg';
+  // EN: Recreate a File so the existing ZIP exporter can be reused unchanged.
+  // 中：重新建立 File 物件，使原本的 ZIP 匯出流程不需要修改。
+  restored.push({file:new File([body],name,{type}),img:null,url:null,boxes,done:completed?completed.get(path):true,split});
+  // EN: Record this image name to prevent cross-split collisions.
+  // 中：記錄檔名，避免兩個資料分組互相衝突。
+  seen.add(name.toLowerCase());
+ }
+ // EN: Reject ZIP files that do not contain this tool's YOLO image layout.
+ // 中：若沒有符合本工具格式的 YOLO 圖片，則拒絕匯入。
+ if(!restored.length)throw Error('ZIP 中找不到 images/train 或 images/val 內的圖片。');
+ // EN: Reject incomplete or mismatched progress records instead of silently losing status.
+ // 中：拒絕缺漏或不一致的進度紀錄，避免完成狀態遺失。
+ if(session&&(completed.size!==restored.length||restored.some(im=>typeof im.done!=='boolean')))throw Error('續標進度與 ZIP 圖片數量不符。');
+ // EN: Determine which image was active in the saved session, if available.
+ // 中：若備份有記錄上次選取的圖片，則一併還原選取位置。
+ const selected=session?restored.findIndex(im=>`images/${im.split}/${im.file.name}`===session.current):0;
+ // EN: Return a completely validated project, ready to replace the current editor.
+ // 中：回傳完整且通過檢查的標註資料，以供安全載入。
+ return {classes,restored,selected:Math.max(0,selected)};
+}
+
+// EN: Import previously exported annotations only after validation and explicit overwrite consent.
+// 中：通過檢查並取得覆蓋確認後，才匯入先前的標註進度。
+$('importZip').onclick=()=>$('datasetZipFile').click();
+// EN: Handle the ZIP chosen by the user while keeping the current work safe on errors.
+// 中：處理使用者選取的 ZIP；發生錯誤時保留目前工作。
+$('datasetZipFile').addEventListener('change',async ev=>{
+ // EN: Capture the selected file and allow the same ZIP to be selected again.
+ // 中：取得上傳檔案，並允許日後重新選取同一個 ZIP。
+ const file=ev.target.files[0];ev.target.value='';
+ // EN: Ignore empty selections and overlapping import requests.
+ // 中：略過未選檔案或正在匯入的重複操作。
+ if(!file||importing)return;
+ // EN: Require confirmation before overwriting an existing annotation session.
+ // 中：若目前已經有圖片，覆蓋工作前必須先詢問。
+ if(images.length&&!confirm(`目前已有 ${images.length} 張圖片。匯入 ZIP 將取代目前的圖片、框及類別；請先匯出尚未保存的進度。確定取代嗎？`))return;
+ // EN: Disable repeat clicks and display the import progress.
+ // 中：暫時停用按鈕並顯示匯入狀態。
+ importing=true;$('importZip').disabled=true;$('importInfo').textContent='正在檢查 ZIP 及所有標註內容…';
+ // EN: Parse and validate the entire dataset before replacing any current work.
+ // 中：先完成整份資料的解析及檢查，再取代現有標註。
+ try{
+  // EN: Read and verify every ZIP entry including CRC checks.
+  // 中：讀取 ZIP 項目，並執行 CRC 校驗。
+  const entries=await readZipEntries(file);
+  // EN: Recover the class mapping and every image's bounding boxes.
+  // 中：還原類別對照、每張圖片的分組及標註框。
+  const dataset=restoreDataset(entries);
+  // EN: Release old image object URLs only after successful validation.
+  // 中：全部檢查通過後，才釋放原本圖片的暫存網址。
+  images.forEach(item=>URL.revokeObjectURL(item.url));
+  // EN: Create local preview URLs for every recovered image file.
+  // 中：為還原的圖片建立本機預覽網址。
+  images=dataset.restored.map(item=>({...item,url:URL.createObjectURL(item.file)}));
+  // EN: Restore classes and reset the current selection and drawing state.
+  // 中：還原類別，並重設目前圖片選取與畫框狀態。
+  classNames=dataset.classes;current=-1;drag=null;
+  // EN: Refresh class controls and store only the class names in local storage.
+  // 中：更新類別選單，並只將類別名稱保存至瀏覽器設定。
+  classUI();storeClasses();
+  // EN: Show the first restored image and update the list counts.
+  // 中：顯示第一張還原的圖片並更新數量統計。
+  choose(dataset.selected);
+  // EN: Report restored annotation counts without claiming automatic browser persistence.
+  // 中：回報還原數量，但不宣稱瀏覽器會自動保存所有圖片。
+  const n=images.reduce((sum,item)=>sum+item.boxes.length,0);
+  // EN: Explain the next step of adding or editing annotations before exporting again.
+  // 中：說明可繼續標註，之後仍須重新匯出 ZIP 保存。
+  $('importInfo').textContent=`成功還原 ${images.length} 張圖片、${n} 個框及 ${classNames.length} 種類別；已完成 ${images.filter(x=>x.done).length} 張。繼續編輯後，請重新儲存 ZIP。`;
+  // EN: Also show a short confirmation near the annotation canvas.
+  // 中：在圖片編輯區顯示簡短的匯入成功訊息。
+  msg(`已還原 ${images.length} 張圖片與 ${n} 個框，可繼續編輯。`);
+ }catch(err){
+  // EN: Preserve the previous editor state and explain why the archive was rejected.
+  // 中：保留先前資料並說明 ZIP 無法匯入的原因。
+  $('importInfo').textContent='匯入失敗：'+err.message;alert('無法匯入標註 ZIP：'+err.message);
+ }finally{
+  // EN: Re-enable imports after success or failure.
+  // 中：無論成功或失敗，都重新啟用匯入按鈕。
+  importing=false;$('importZip').disabled=false;
+ }
+});
+
 $('exportZip').onclick=async()=>{if(exporting)return;if(!images.length){alert('請先加入圖片。');return}
  const incomplete=images.filter(x=>!x.done);if(incomplete.length){alert(`還有 ${incomplete.length} 張尚未按「完成本張標註」。`);return}
  const train=images.filter(x=>x.split==='train'),val=images.filter(x=>x.split==='val');if(!train.length||!val.length){alert('Train 與 Val 都至少需要一張圖片。');return}
@@ -183,9 +565,11 @@ $('exportZip').onclick=async()=>{if(exporting)return;if(!images.length){alert('�
  const onlyVal=[...valCls].filter(c=>!trainCls.has(c));if(onlyVal.length&&!confirm(`這些類別只出現在 Val，沒有任何訓練框：${onlyVal.map(c=>classNames[c]).join('、')}。這樣無法合理驗證該類別，仍要匯出嗎？`))return;
  if(!valCls.size&&!confirm('目前 Val 全是 0 框背景圖，無法有意義地評估物件偵測召回率或 mAP。仍要匯出練習資料嗎？'))return;
  exporting=true;$('exportZip').disabled=true;msg('正在打包所有圖片和標註，請稍候…');
- try{const files=[];const yaml=['# YOLO detection dataset.\n','train: images/train\n','val: images/val\n','names:\n',...classNames.map((name,i)=>`  ${i}: ${JSON.stringify(name)}\n`)].join('');files.push(asText('data.yaml',yaml));files.push(asText('classes.txt',classNames.join('\n')+'\n'));
- for(const e of images){const stem=e.file.name.replace(/\.[^.]+$/,'');const text=e.boxes.map(b=>[b.cls,(b.x+b.w/2).toFixed(6),(b.y+b.h/2).toFixed(6),b.w.toFixed(6),b.h.toFixed(6)].join(' ')).join('\n');
- files.push({name:`images/${e.split}/${e.file.name}`,body:new Uint8Array(await e.file.arrayBuffer())});files.push(asText(`labels/${e.split}/${stem}.txt`,text?text+'\n':''));}
+ // EN: Reuse the same YOLO dataset assembler as the progress-backup action.
+ // 中：正式訓練資料集與續標備份共用相同的圖片及框資料來源。
+ try{const files=await collectDatasetFiles();
+ // EN: Preserve the original training-data summary format.
+ // 中：維持原本的 YOLO 訓練資料摘要格式。
  files.push(asText('標註摘要.txt',`Train 圖片：${train.length}\nVal 圖片：${val.length}\n類別數：${classNames.length}\n備註：0 框圖片代表背景，不需要 background 類別。\n`));
  saveBlob(makeZip(files),'04_YOLO標註資料集.zip');msg(`匯出成功：${images.length} 張圖片、${classNames.length} 類。請保存 ZIP。`);
  }catch(err){alert('匯出失敗：'+err.message);msg('請確認圖片仍可讀取後重試。')}finally{exporting=false;$('exportZip').disabled=false}
