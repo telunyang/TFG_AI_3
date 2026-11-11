@@ -51,9 +51,9 @@
 
 ### 07｜AI Agent
 
-從「回答問題」走向「使用工具完成任務」：
+從遠端模型連線到實際操作，快速建置能使用工具的 AI Agent：
 
-以活動公告為貫穿案例，了解 Agent 的任務規劃、工具呼叫、執行回饋、工作紀錄及 Skill；接著練習查核資料來源、辨識提示詞注入、掌握工具權限與人工確認，並認識 Windows 桌面端與 Colab／Ollama 遠端模型的連線情境。
+透過 VS Code 連接 Google Colab，在 Colab 安裝 Ollama、設定 Context Length，並使用 ngrok 建立模型 API 連線；接著從官方網站安裝 Windows／macOS 版 Hermes Desktop，透過自訂端點連接遠端模型，不需在本機啟動 Ollama。完成連線後，實作 Coding、Browser Automation 與 Computer Use，驗證程式執行、網頁操作及桌面控制成果；並延伸認識 Skills、動畫與有聲影片製作，以及常見錯誤排除。
 
 ## Conda 環境安裝
 
@@ -85,4 +85,54 @@ conda deactivate
 
 # 刪除 conda 環境
 conda remove -n ai --all
+```
+
+## Colab + Ollama + ngrok 快速指令
+```bash
+# 安裝 Ollama
+sudo apt-get install zstd
+curl -fsSL https://ollama.com/install.sh | sh
+
+# 設定環境變數
+export OLLAMA_CONTEXT_LENGTH=65536
+export OLLAMA_KEEP_ALIVE=-1
+export OLLAMA_ORIGINS="*"
+
+# 執行程式 (執行後，先等 3 秒左右，等待服務完全啟動)
+nohup ollama serve > /tmp/ollama.log 2>&1 &
+
+# 下載模型
+ollama pull nemotron-3.5-bolt:e4b
+
+# 測試模型
+ollama run nemotron-3.5-bolt:e4b "(繁體中文) 你好~~~"
+
+# 安裝 ngrok
+curl -sSL https://ngrok-agent.s3.amazonaws.com/ngrok.asc \
+  | tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null \
+  && echo "deb https://ngrok-agent.s3.amazonaws.com bookworm main" \
+  | tee /etc/apt/sources.list.d/ngrok.list \
+  && apt update \
+  && apt install -y ngrok
+  
+# 設定 auth token (顯示輸入文字方塊，讓學生填寫)
+ngrok config add-authtoken "<YOUR_NGROK_AUTHTOKEN>"
+
+# (Optional) 建立 Traffic Policy 檔案 (可以寫入到 /content/ollama-ngrok.yaml 當中)
+on_http_request:
+  - actions:
+      - type: add-headers
+        config:
+          headers:
+            host: localhost
+			
+# 執行 ngrok，取得公開對外的 URL
+ngrok http 11434 --traffic-policy-file /content/ollama-ngrok.yaml
+
+# (Optional) 刪除 ngrok 服務
+pkill ngrok
+
+# 停止 ollama
+ollama stop nemotron-3.5-bolt:e4b
+pkill ollama
 ```
