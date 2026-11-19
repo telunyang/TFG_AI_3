@@ -14,6 +14,12 @@ Set the URL displayed in the Notebook ngrok cell.
 API_URL = 'https://REPLACE_WITH_YOUR_NGROK_DOMAIN'
 
 '''
+Verify the remote Notebook serves this specific model.
+確認遠端 Notebook 啟動的是這份 client 對應的模型。
+'''
+EXPECTED_SERVICE = '06_YuE2_音樂生成_Kaggle'
+
+'''
 Describe the musical style and singer.
 描述音樂曲風與演唱風格。
 '''
@@ -51,8 +57,16 @@ Configure language-model and synthesizer seeds (-1 is random).
 LM_SEED, SEED = -1, -1
 
 '''
-Optional local ABC score file; use '' to generate without a supplied score.
-可指定本機 ABC 樂譜檔；留空則不提供樂譜。
+Paste an optional ABC score here; leave empty for normal music generation.
+可直接貼上 ABC 樂譜；一般音樂生成時維持空白。
+'''
+ABC = '''
+
+'''.strip()
+
+'''
+Alternatively, provide a local .abc file path; use only one ABC source.
+也可以改填本機 .abc 檔案路徑；兩種樂譜來源只能擇一。
 '''
 ABC_PATH = ''
 
@@ -65,16 +79,28 @@ PARAMS = dict(task='music', style=STYLE, lyrics=LYRICS,
               lm_seed=LM_SEED, seed=SEED)
 
 '''
-Include the score content only when an ABC file is provided.
-只有設定 ABC 檔案時才送出樂譜內容。
+Validate the optional ABC input before sending a remote generation request.
+提交遠端生成請求前，先檢查可選的 ABC 樂譜設定。
 '''
-if ABC_PATH:
+if ABC and ABC_PATH:
+    raise ValueError('ABC 和 ABC_PATH 只能擇一提供，請將另一項留空。')
 
-    '''
-    Read the local score instead of sending a server-side file path.
-    讀取本機樂譜內容，避免把無法存取的本機路徑送給 Kaggle。
-    '''
-    PARAMS['abc'] = Path(ABC_PATH).read_text(encoding='utf-8')
+'''
+Use inline ABC text or read a local score; send the text, never a local path.
+使用貼上的 ABC 或本機檔案內容；傳送樂譜文字，而不是本機路徑。
+'''
+score_text = Path(ABC_PATH).read_text(encoding='utf-8').strip() if ABC_PATH else ABC
+
+'''
+Include a supplied score only when score planning is enabled.
+有提供樂譜時，必須開啟 full 或 melody 樂譜規劃模式。
+'''
+if score_text:
+    if COT not in ('full', 'melody'):
+        raise ValueError('提供 ABC 樂譜時，COT 必須是 full 或 melody。')
+    if len(score_text.encode('utf-8')) > 1024 * 1024:
+        raise ValueError('ABC 樂譜內容不得超過 1 MiB。')
+    PARAMS['abc'] = score_text
 
 '''
 Keep downloaded files in a separate local directory.
@@ -260,6 +286,24 @@ def download_file(session, job_id, endpoint, filename, api_url=API_URL):
 Run a single generation request and download only that job's results.
 提交一筆生成請求，並只下載該工作的結果。
 '''
+'''
+Check CUDA readiness before submitting the model-specific generation request.
+提交此模型專屬的生成請求前，先確認 Kaggle 的 CUDA 後端已就緒。
+'''
+def check_gpu_backend(session):
+    response = session.get(API_URL.rstrip('/') + '/health?task=' + str(PARAMS['task']), headers=HEADERS, timeout=(10, 20))
+    response.raise_for_status()
+    status = response.json()
+    if status.get('service_id') != EXPECTED_SERVICE:
+        raise RuntimeError('API_URL 指向錯誤的模型服務：' + str(status.get('service_id', '未知服務')))
+    if status.get('task') != PARAMS['task']:
+        raise RuntimeError('遠端服務未正確辨識生成模式：' + str(PARAMS['task']))
+    if status.get('gpu_ready') is not True:
+        raise RuntimeError('遠端 GPU 尚未就緒：' + status.get('gpu_message', '請更新並重新執行 Notebook 的 API Cell。'))
+    if status.get('backend_ready') is not True:
+        raise RuntimeError('遠端模型或模式尚未就緒：' + status.get('gpu_message', '請先執行對應的 Notebook 設定 Cells。'))
+    print('已偵測 CUDA：', '、'.join(status.get('gpu_devices', [])))
+
 def main():
 
     '''
@@ -274,6 +318,12 @@ def main():
     提交與查詢期間共用 HTTP 連線池。
     '''
     with requests.Session() as session:
+
+        '''
+        Reject missing CUDA backends before adding a long-running job to the queue.
+        GPU 未就緒就立即提示，不讓學生無謂地等待生成。
+        '''
+        check_gpu_backend(session)
 
         '''
         Submit exactly one generation job to the FIFO queue.

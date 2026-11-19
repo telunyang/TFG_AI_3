@@ -16,6 +16,12 @@ Set the URL displayed in the Notebook ngrok cell.
 API_URL = 'https://REPLACE_WITH_YOUR_NGROK_DOMAIN'
 
 '''
+Verify the remote Notebook serves this specific model.
+確認遠端 Notebook 啟動的是這份 client 對應的模型。
+'''
+EXPECTED_SERVICE = '06_MiniMax_H3_影片生成_Kaggle'
+
+'''
 Choose t2v, i2v, flf2v, or r2v (1–9 reference images).
 選擇 t2v、i2v、flf2v 或 r2v（1～9 張參考圖）。
 '''
@@ -298,6 +304,24 @@ def download_file(session, job_id, endpoint, filename, api_url=API_URL):
 Run a single generation request and download only that job's results.
 提交一筆生成請求，並只下載該工作的結果。
 '''
+'''
+Check CUDA readiness before submitting the model-specific generation request.
+提交此模型專屬的生成請求前，先確認 Kaggle 的 CUDA 後端已就緒。
+'''
+def check_gpu_backend(session):
+    response = session.get(API_URL.rstrip('/') + '/health?task=' + str(PARAMS['task']), headers=HEADERS, timeout=(10, 20))
+    response.raise_for_status()
+    status = response.json()
+    if status.get('service_id') != EXPECTED_SERVICE:
+        raise RuntimeError('API_URL 指向錯誤的模型服務：' + str(status.get('service_id', '未知服務')))
+    if status.get('task') != PARAMS['task']:
+        raise RuntimeError('遠端服務未正確辨識生成模式：' + str(PARAMS['task']))
+    if status.get('gpu_ready') is not True:
+        raise RuntimeError('遠端 GPU 尚未就緒：' + status.get('gpu_message', '請更新並重新執行 Notebook 的 API Cell。'))
+    if status.get('backend_ready') is not True:
+        raise RuntimeError('遠端模型或模式尚未就緒：' + status.get('gpu_message', '請先執行對應的 Notebook 設定 Cells。'))
+    print('已偵測 CUDA：', '、'.join(status.get('gpu_devices', [])))
+
 def main():
 
     '''
@@ -312,6 +336,12 @@ def main():
     提交與查詢期間共用 HTTP 連線池。
     '''
     with requests.Session() as session:
+
+        '''
+        Reject missing CUDA backends before adding a long-running job to the queue.
+        GPU 未就緒就立即提示，不讓學生無謂地等待生成。
+        '''
+        check_gpu_backend(session)
 
         '''
         Submit exactly one generation job to the FIFO queue.

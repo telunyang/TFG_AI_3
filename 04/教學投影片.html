@@ -1,0 +1,714 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HTML × CSS Selector × requests × BeautifulSoup × Selenium｜高中網頁爬蟲入門</title>
+<style>
+  :root {
+    color-scheme: dark;
+    font-family: "Noto Sans TC", "Microsoft JhengHei", "PingFang TC", system-ui, sans-serif;
+    --bg: #091327; --surface: #14233d; --surface-2: #1b304f;
+    --text: #f3f8ff; --muted: #c2d2e6; --border: #344764;
+    --sky: #76d5ff; --mint: #66efc3; --gold: #ffd079; --pink: #ff9aa8;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; width: 100%; overflow: hidden; }
+  body { background: var(--bg); color: var(--text); }
+  button, input { font: inherit; }
+  button { cursor: pointer; }
+  code, pre { font-family: Consolas, "Cascadia Code", "Noto Sans Mono", monospace; }
+  .slide {
+    display: none; position: absolute; inset: 0; overflow-y: auto;
+    padding: clamp(30px, 4.4vw, 82px) clamp(30px, 5.2vw, 104px) 110px;
+    background: radial-gradient(ellipse at 95% 0%, rgba(27, 90, 142, .20), transparent 48%), var(--bg);
+  }
+  .slide.active { display: flex; flex-direction: column; gap: clamp(18px, 2vw, 35px); }
+  .eyebrow { color: var(--mint); font-size: clamp(14px, 1.05vw, 20px); font-weight: 800; letter-spacing: .11em; }
+  h1, h2, h3, h4, p, ul { margin: 0; }
+  .slide h2 { font-size: clamp(34px, 3.6vw, 69px); font-weight: 850; line-height: 1.16; letter-spacing: -.035em; }
+  .slide h3 { font-size: clamp(23px, 2vw, 40px); font-weight: 800; line-height: 1.25; }
+  .slide p, .slide li, .slide .large { font-size: clamp(20px, 1.76vw, 34px); line-height: 1.48; }
+  .slide small, .note { font-size: clamp(16px, 1.25vw, 24px); line-height: 1.45; color: var(--muted); }
+  .accent { color: var(--sky); } .mint { color: var(--mint); } .gold { color: var(--gold); } .pink { color: var(--pink); }
+  .muted { color: var(--muted); }
+  .strong { font-weight: 850; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(16px, 2.2vw, 40px); min-height: 0; }
+  .grid-2.split-55 { grid-template-columns: 1.1fr .9fr; }
+  .grid-2.split-45 { grid-template-columns: .9fr 1.1fr; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(14px, 1.5vw, 28px); }
+  .panel { background: rgba(20, 35, 61, .94); border: 2px solid var(--border); border-radius: 23px; padding: clamp(18px, 2.15vw, 38px); min-width: 0; }
+  .panel.light { background: #eaf5ff; color: #0a2440; border-color: #a7c9e4; }
+  .panel.tint { border-color: #327487; }
+  .panel.good { border-color: #2a936f; }
+  .panel.bad { border-color: #9d576c; }
+  .panel h3 { margin-bottom: .5em; }
+  .panel p + p { margin-top: .55em; }
+  .stack { display: flex; flex-direction: column; gap: 20px; }
+  .row { display: flex; align-items: center; gap: clamp(13px, 1.5vw, 28px); flex-wrap: wrap; }
+  .tag { display: inline-flex; align-items: center; background: #203954; border: 1px solid #48607c; border-radius: 999px; padding: 7px 16px; font-size: clamp(15px, 1.2vw, 23px); font-weight: 750; white-space: nowrap; }
+  .tag.sky { color: var(--sky); border-color: #2d7eae; } .tag.mint { color: var(--mint); border-color: #278f77; } .tag.gold { color: var(--gold); border-color: #a17f45; }
+  .code { margin: 0; display: block; overflow-x: auto; background: #071021; border: 2px solid #32445e; border-radius: 18px; padding: clamp(16px, 1.6vw, 30px); color: #e8f5ff; font-size: clamp(17px, 1.28vw, 25px); line-height: 1.38; tab-size: 2; white-space: pre; }
+  .code.compact { font-size: clamp(16px, 1.17vw, 23px); line-height: 1.32; }
+  .code.tiny { font-size: clamp(15px, 1.08vw, 21px); line-height: 1.3; }
+  .cm { color: #8da7bf; } .fn { color: #87d6ff; } .str { color: #b7f09e; } .kw { color: #ffcd91; } .sym { color: #ffb4b4; }
+  .code-title { color: #e2edfc; background: #1b304f; border: 1px solid #405a7b; padding: 9px 16px; border-radius: 12px; font-size: clamp(15px, 1.1vw, 21px); margin-bottom: 10px; display: inline-block; font-weight: 800; }
+  .callout { border-left: 8px solid var(--mint); background: #132d3b; padding: clamp(12px, 1.4vw, 25px); border-radius: 0 16px 16px 0; font-size: clamp(20px, 1.72vw, 33px); line-height: 1.42; }
+  .callout.warn { border-color: var(--gold); background: #302b24; }
+  .math-arrow { font-size: clamp(29px, 3vw, 56px); color: var(--gold); font-weight: 900; }
+  .num { display: inline-grid; place-items: center; border-radius: 18px; background: #215579; color: white; width: 54px; height: 54px; font-size: 27px; font-weight: 850; }
+  .big-choice { font-size: clamp(24px, 2.1vw, 41px); font-weight: 850; }
+  .selector { color: var(--mint); font-family: Consolas, monospace; font-weight: 800; }
+  .rule { display: grid; grid-template-columns: .62fr 1.1fr 1.05fr; gap: 12px; align-items: center; border-bottom: 1px solid #38506d; padding: 16px 4px; font-size: clamp(20px, 1.75vw, 33px); }
+  .rule:last-child { border: 0; }
+  .rule code { font-size: clamp(21px, 1.85vw, 34px); font-weight: 850; color: var(--mint); }
+  .rule .desc { font-size: clamp(18px, 1.5vw, 28px); color: var(--muted); }
+  .tree-node { border: 3px solid #4c9bd1; background: #122c4c; border-radius: 19px; padding: 12px 19px; font: 700 clamp(18px, 1.8vw, 32px)/1.4 Consolas,monospace; }
+  .tree-node.inset { margin-left: 45px; border-color: #52bca6; background: #15352f; }
+  .tree-node.deeper { margin-left: 92px; border-color: #dfb55f; background: #3e2f21; }
+  .tree-legend { font-size: clamp(17px, 1.33vw, 25px) !important; }
+  .demo-render { padding: 28px 18px; background: #f4f9ff; color: #10233e; border-radius: 15px; }
+  .demo-render ul { list-style-type: disc; margin: 8px 0 0 38px; }
+  .demo-render li { font-size: clamp(20px, 1.6vw, 32px); margin: 12px 0; padding: 6px 10px; border: 3px solid transparent; border-radius: 12px; }
+  .demo-render a { display: inline-block; font-size: inherit; color: #124fa3; padding: 4px 8px; border: 3px solid transparent; border-radius: 9px; }
+  .demo-render { position: relative; padding: 14px; overflow: hidden; }
+  .demo-render #board { padding: 10px; border: 2px dashed #9bb8d2; border-radius: 12px; }
+  .demo-render #board::before { content: "div#board"; display: block; color: #405b73; font: 700 15px Consolas,monospace; }
+  .demo-render ul { list-style: none; margin: 9px 0 12px; padding: 10px; border: 2px solid #cad9e7; border-radius: 12px; }
+  .demo-render ul::before { content: "ul#ul-01"; display: block; color: #405b73; font: 700 15px Consolas,monospace; }
+  .demo-render li { margin: 6px 0; padding: 8px 10px; background: #e7f0fb; border: 2px solid #c9d9ea; border-radius: 10px; }
+  .demo-render li::before { content: "li.cc"; font: 700 14px Consolas,monospace; color: #58718d; display: inline-block; margin-right: 12px; }
+  .demo-render li.hot::before { content: "li.cc.hot.featured"; }
+  .demo-render .item-body { display: inline-block; border: 2px dashed #b8d2db; padding: 4px 9px; border-radius: 10px; }
+  .demo-render a { font-size: clamp(18px, 1.38vw, 28px); font-weight: 750; }
+  .demo-render a.external { margin: 0 0 0 10px; }
+  .match-overlay { position: absolute; border: 4px solid #d46c17; border-radius: 10px; box-shadow: 0 0 0 4px rgba(255, 192, 100, .3); pointer-events: none; z-index: 3; }
+  #match-overlay-layer { position: absolute; inset: 0; pointer-events: none; z-index: 3; }
+  .demo-html { font-size: clamp(15px, 1.09vw, 21px); line-height: 1.23; padding: 14px; }
+  .preset-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .preset-grid button { min-height: 39px; padding: 6px; font-size: clamp(13px, 1.01vw, 19px); white-space: normal; line-height: 1.15; }
+  .selector-input { font-size: clamp(19px, 1.48vw, 30px); padding: 9px 14px; }
+  #selection-result { font-size: clamp(18px, 1.45vw, 29px); }
+  .selector-note { font-size: clamp(15px, 1.06vw, 22px) !important; }
+  .combo { border: 1px solid #3b5672; background: #10243c; padding: 13px 18px; border-radius: 14px; }
+  .combo code { color: var(--mint); font-size: clamp(22px, 1.8vw, 34px); font-weight: 850; overflow-wrap: anywhere; }
+  .combo p { font-size: clamp(17px, 1.32vw, 25px); margin-top: 5px; }
+  .combo-grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
+  @media (max-height: 850px) and (min-width: 981px) {
+    .demo-html { font-size: clamp(14px, 1.06vw, 20px); line-height: 1.16; padding: 10px 13px; }
+    .demo-render { padding: 11px; }
+    .demo-render #board { padding: 7px; }
+    .demo-render ul { margin: 5px 0 8px; padding: 7px; }
+    .demo-render li { margin: 4px 0; padding: 5px 7px; }
+    .demo-render li::before { margin-right: 7px; }
+    .demo-render a { padding: 2px 4px; }
+    .combo { padding: 9px 13px; }
+    .combo-grid { gap: 8px; }
+  }
+  .selector-input { width: 100%; padding: 14px 18px; color: #122941; background: white; border-radius: 14px; border: 3px solid #7fc7ef; font: 700 clamp(21px, 1.8vw, 35px) Consolas,monospace; }
+  .preset { padding: 8px 14px; font-size: clamp(15px, 1.1vw, 21px); color: var(--sky); background: #163650; border: 1px solid #4d9ec3; border-radius: 9px; }
+  .preset:hover, .preset:focus-visible { background: #245779; }
+  #selection-result { font-size: clamp(19px, 1.6vw, 30px); color: var(--gold); min-height: 1.5em; }
+  .flowbar { display: grid; grid-template-columns: 1fr auto 1fr auto 1fr; align-items: center; gap: 10px; }
+  .flowbox { text-align: center; padding: clamp(15px, 1.75vw, 30px) 10px; border: 2px solid #4f789a; border-radius: 18px; background: #1b344e; font-size: clamp(20px, 1.65vw, 32px); font-weight: 850; }
+  .flowbox.highlight { border-color: #1dad93; background: #164337; }
+  .mini-label { font-size: clamp(14px, 1.03vw, 19px); font-weight: 700; color: #b6cce2; letter-spacing: .04em; }
+  .compare { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
+  .big-number { font-size: clamp(55px, 7vw, 132px); line-height: 1; font-weight: 950; letter-spacing: -.04em; }
+  .keys { display: inline-flex; gap: 4px; padding: 6px 12px; background: #233651; border: 1px solid #536782; border-radius: 8px; font-family: Consolas, monospace; font-size: 17px; }
+  .bottom-line { margin-top: auto; padding-top: 8px; color: var(--muted); font-size: clamp(17px, 1.3vw, 24px); }
+  .timeline { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
+  .phase { background: #1a304e; border: 2px solid #4a6481; border-radius: 18px; padding: 22px 14px; text-align: center; font-size: clamp(20px, 1.55vw, 30px); font-weight: 850; }
+  .phase + .phase::before { content: '→'; position: absolute; color: var(--gold); transform: translate(-33px, 0); }
+  .table { width: 100%; border-collapse: collapse; font-size: clamp(18px, 1.5vw, 28px); }
+  .table th, .table td { padding: 15px 15px; border-bottom: 2px solid #36506b; text-align: left; vertical-align: top; }
+  .table th { color: var(--sky); }
+  .table code { font-size: .9em; color: var(--mint); }
+  .controls { position: fixed; z-index: 100; left: 50%; bottom: 18px; transform: translateX(-50%); background: #0e1b32ed; border: 1px solid #465b75; border-radius: 999px; display: flex; align-items: center; padding: 6px 10px; gap: 16px; box-shadow: 0 6px 32px rgba(0,0,0,.3); }
+  body:has(.slide[data-title="CSS Selector 實作"].active) .controls { left: auto; right: 18px; transform: none; }
+  .controls button { border: 0; background: #223c5d; color: white; min-width: 43px; height: 43px; border-radius: 50%; font-size: 24px; }
+  .controls button:disabled { opacity: .3; cursor: default; }
+  .controls button:hover:not(:disabled), .controls button:focus-visible { background: #3477a4; }
+  #page-counter { min-width: 78px; color: var(--text); text-align: center; font: 800 20px Consolas,monospace; }
+  #progress { position: fixed; z-index: 101; left: 0; bottom: 0; background: var(--mint); height: 5px; transition: width .2s; }
+  .kicker { font-size: clamp(18px, 1.4vw, 27px) !important; color: var(--muted); }
+  @media (max-height: 850px) and (min-width: 981px) {
+    .slide { padding-top: 26px; padding-bottom: 78px; }
+    .slide.active { gap: 14px; }
+    .slide h2 { font-size: clamp(32px, 3.18vw, 54px); }
+    .slide p, .slide li, .slide .large { line-height: 1.36; }
+    .panel { padding: clamp(13px, 1.65vw, 28px); border-radius: 17px; }
+    .panel h3 { margin-bottom: .3em; }
+    .stack { gap: 12px; }
+    .code { padding: 13px; font-size: clamp(17px, 1.28vw, 23px); line-height: 1.28; }
+    .code.compact { font-size: clamp(16px, 1.21vw, 22px); line-height: 1.24; }
+    .callout { padding: 12px 16px; line-height: 1.3; }
+  }
+  @media (min-height: 851px) and (min-width: 981px) {
+    .slide { padding-bottom: 75px; }
+    .slide.active { gap: clamp(18px, 1.7vw, 30px); }
+    .panel { padding: clamp(18px, 1.85vw, 32px); }
+  }
+  @media (min-height: 851px) and (max-height: 980px) and (min-width: 981px) {
+    .slide { padding-top: 35px; padding-bottom: 65px; }
+    .slide.active { gap: 19px; }
+    .stack { gap: 13px; }
+  }
+  .slide[data-title="Selenium 找元素"] .stack { gap: 9px; }
+  @media (max-width: 980px) {
+    .slide { padding-bottom: 95px; }
+    .grid-2, .grid-2.split-55, .grid-2.split-45 { grid-template-columns: 1fr; }
+    .grid-3 { grid-template-columns: 1fr; }
+    .rule { grid-template-columns: .8fr 1fr; }
+    .rule .desc { grid-column: 2; }
+  }
+  @media print {
+    @page { size: landscape; margin: 0; }
+    html, body { height: auto; overflow: visible; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .slide, .slide.active { position: relative; inset: auto; display: flex !important; width: 100vw; height: 100vh; overflow: hidden; page-break-after: always; break-after: page; padding-bottom: 45px; }
+    .controls, #progress { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- 01: Title -->
+<section class="slide active" data-title="課程起點">
+  <div class="eyebrow">高中 AI 與資料應用實作 ｜ 網頁資料擷取入門</div>
+  <div style="margin-top:auto;margin-bottom:auto;max-width:1520px;">
+    <p class="tag mint" style="margin-bottom:25px">本堂課的核心問題：如何準確找到網頁上的資料？</p>
+    <h1 style="font-size:clamp(62px,6.1vw,118px);line-height:1.14;letter-spacing:-.055em;margin-bottom:25px;">先<span class="mint">選對元素</span>，<br>才能<span class="accent">抓對資料</span>。</h1>
+    <p style="font-size:clamp(27px,2.45vw,47px);color:#d4e3f2;">HTML → CSS Selector → requests / BeautifulSoup → Selenium</p>
+  </div>
+  <div class="grid-3">
+    <div class="panel"><span class="num">1</span><p style="margin-top:13px">看懂 HTML 的<strong>親屬關係</strong></p></div>
+    <div class="panel"><span class="num">2</span><p style="margin-top:13px">用 CSS Selector <strong>精準定位</strong></p></div>
+    <div class="panel"><span class="num">3</span><p style="margin-top:13px">判斷何時用 <strong>requests / Selenium</strong></p></div>
+  </div>
+</section>
+
+<!-- 02: HTML -->
+<section class="slide" data-title="HTML 結構">
+  <div class="eyebrow">01 / 先認識 HTML</div>
+  <h2>網頁的基本零件：<span class="accent">Tag · Element · Attribute</span></h2>
+  <div class="grid-2 split-55">
+    <div class="stack">
+      <div class="code-title">一小段 HTML</div>
+      <pre class="code">&lt;body&gt;
+  &lt;h1 id=<span class="str">"title"</span>&gt;校園公告&lt;/h1&gt;
+  &lt;ul id=<span class="str">"news-list"</span>&gt;
+    &lt;li class=<span class="str">"card"</span>&gt;
+      &lt;a href=<span class="str">"#post-1"</span>&gt;看更多&lt;/a&gt;
+    &lt;/li&gt;
+  &lt;/ul&gt;
+&lt;/body&gt;</pre>
+      <div class="callout">HTML 用<strong>標籤</strong>描述內容結構；元素可以包含其他元素。</div>
+    </div>
+    <div class="stack">
+      <div class="panel">
+        <h3><span class="gold">Tag</span> 標籤</h3>
+        <p><code>&lt;a&gt;</code>、<code>&lt;/a&gt;</code> 是開始／結束標籤。</p>
+      </div>
+      <div class="panel">
+        <h3><span class="mint">Element</span> 元素</h3>
+        <p><code>&lt;a&gt;看更多&lt;/a&gt;</code> 是一個完整元素。</p>
+      </div>
+      <div class="panel">
+        <h3><span class="accent">Attribute</span> 屬性</h3>
+        <p><code>id</code>、<code>class</code>、<code>href</code> 會提供額外資訊。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 03: DOM relatives -->
+<section class="slide" data-title="父子孫與兄弟">
+  <div class="eyebrow">02 / 理解階層，才會寫選擇器</div>
+  <h2>HTML 是一棵樹：<span class="mint">父 → 子 → 孫</span></h2>
+  <div class="grid-2 split-55">
+    <div class="panel stack">
+      <div class="tree-node">&lt;ul id="news-list"&gt; <span class="tag sky">父元素</span></div>
+      <div class="tree-node inset">&lt;li class="card"&gt; <span class="tag mint">子元素</span></div>
+      <div class="tree-node deeper">&lt;a href="..."&gt;看更多&lt;/a&gt; <span class="tag gold">孫元素</span></div>
+      <div class="tree-node inset">&lt;li class="card"&gt;…&lt;/li&gt; <span class="tag mint">兄弟元素</span></div>
+      <div class="tree-node">&lt;/ul&gt;</div>
+    </div>
+    <div class="stack">
+      <div class="panel"><h3>往內一層＝<span class="mint">子層</span></h3><p><code>li</code> 是 <code>ul</code> 的<strong>直接子元素</strong>。</p></div>
+      <div class="panel"><h3>往內兩層＝<span class="gold">孫層</span></h3><p><code>a</code> 是 <code>ul</code> 的<strong>後代</strong>，但不是直接子元素。</p></div>
+      <div class="panel"><h3>同一層＝<span class="accent">兄弟</span></h3><p>兩個 <code>li</code> 都在同一個 <code>ul</code> 裡面。</p></div>
+      <div class="callout">看 HTML 時先問：<strong>誰包住誰？誰和誰同層？</strong></div>
+    </div>
+  </div>
+</section>
+
+<!-- 04: CSS selector basics -->
+<section class="slide" data-title="CSS 四類選擇器">
+  <div class="eyebrow">03 / CSS Selector 基本四種</div>
+  <h2>同一份 HTML，可以用不同條件找元素</h2>
+  <div class="grid-2 split-55">
+    <div class="panel">
+      <div class="rule"><strong>元素</strong><code>a</code><span class="desc">選所有 a 連結</span></div>
+      <div class="rule"><strong>ID</strong><code>#ul-01</code><span class="desc">id 等於 ul-01</span></div>
+      <div class="rule"><strong>Class</strong><code>.cc</code><span class="desc">class 清單含 cc</span></div>
+      <div class="rule"><strong>屬性</strong><code>[href]</code><span class="desc">具有 href 屬性</span></div>
+    </div>
+    <div class="stack">
+      <div class="code-title">加上條件，選得更準確</div>
+      <pre class="code compact">a[href]
+<span class="cm"># a 元素，而且有 href</span>
+
+a[href=<span class="str">"#more"</span>]
+<span class="cm"># href 必須剛好等於 #more</span>
+
+a[href^=<span class="str">"#"</span>]
+<span class="cm"># href 必須以 # 開頭</span></pre>
+      <div class="callout warn"><code>.cc</code> 和 <code>#cc</code> 不同；<br><code>[href]</code> 和 <code>[href="#more"]</code> 也不同。</div>
+    </div>
+  </div>
+</section>
+
+<!-- 05: multiple conditions on one element -->
+<section class="slide" data-title="複合 CSS Selector">
+  <div class="eyebrow">04 / CSS Selector 進階：同時滿足所有條件</div>
+  <h2>多個 <span class="mint">Class</span>、多個 <span class="gold">Attribute</span> 可以連著寫</h2>
+  <div class="grid-2 split-45">
+    <div class="stack">
+      <div class="code-title">同一個 a 元素，具有這些屬性</div>
+      <pre class="code compact">&lt;a
+  class=<span class="str">"link primary pinned"</span>
+  href=<span class="str">"#more"</span>
+  data-role=<span class="str">"detail"</span>
+&gt;看更多&lt;/a&gt;</pre>
+      <div class="panel tint">
+        <p>三個 Class：<code>link</code>、<code>primary</code>、<code>pinned</code></p>
+        <p style="margin-top:8px">兩個 Attribute：<code>href</code>、<code>data-role</code></p>
+      </div>
+      <div class="callout warn">條件中間<span class="gold strong">不能加空白</span>，否則會變成查找後代元素。</div>
+    </div>
+    <div class="combo-grid">
+      <div class="combo"><code>a.link.primary.pinned</code><p>同一個 a，<strong>同時具有 3 個 class</strong>。</p></div>
+      <div class="combo"><code>a[href="#more"][data-role="detail"]</code><p>同一個 a，<strong>2 個屬性都符合指定值</strong>。</p></div>
+      <div class="combo"><code>a.link.primary[href="#more"]</code><p>可以把<strong>元素、Class、屬性</strong>混合使用。</p></div>
+      <div class="combo"><code>li.cc[data-type="notice"]</code><p>同時符合 class 與另一個屬性值。</p></div>
+    </div>
+  </div>
+  <div class="bottom-line">通式：<code>元素.類別1.類別2.類別3[屬性1="值1"][屬性2="值2"]</code>（條件全部要符合，且屬於同一個元素）</div>
+</section>
+
+<!-- 06: direct child versus descendant -->
+<section class="slide" data-title="子元素與後代">
+  <div class="eyebrow">05 / 最重要的符號：空白 與 &gt;</div>
+  <h2><span class="mint">空白</span> 找後代，<span class="gold">&gt;</span> 只找直接子元素</h2>
+  <div class="grid-2 split-45">
+    <div class="stack">
+      <pre class="code compact">&lt;ul id="ul-01"&gt;
+  &lt;li class="cc"&gt;
+    &lt;a href="#more"&gt;看更多&lt;/a&gt;
+  &lt;/li&gt;
+  &lt;li class="cc"&gt;
+    &lt;div class="item-body"&gt;
+      &lt;a href="#about"&gt;關於&lt;/a&gt;
+    &lt;/div&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;</pre>
+      <p class="note">第一個 a 在 li 下一層；第二個 a 還要經過一個 div。</p>
+    </div>
+    <div class="panel">
+      <table class="table">
+        <tr><th>CSS Selector</th><th>結果</th></tr>
+        <tr><td><code>ul#ul-01 &gt; a</code></td><td><span class="pink strong">0 個</span><br><small>ul 下沒有直接的 a</small></td></tr>
+        <tr><td><code>ul#ul-01 a</code></td><td><span class="mint strong">2 個</span><br><small>任何深度的後代 a</small></td></tr>
+        <tr><td><code>ul#ul-01 &gt; li</code></td><td><span class="mint strong">2 個</span><br><small>兩個直接子 li</small></td></tr>
+        <tr><td><code>ul#ul-01 &gt; li &gt; a</code></td><td><span class="gold strong">1 個</span><br><small>只找到第一個 a</small></td></tr>
+      </table>
+    </div>
+  </div>
+  <div class="bottom-line"><code>A B</code>＝在 A 內找任何層級的 B；<code>A &gt; B</code>＝只在 A 的下一層找 B。</div>
+</section>
+
+<!-- 07: interactive CSS selector lab -->
+<section class="slide" data-title="CSS Selector 實作">
+  <div class="eyebrow">06 / 立刻驗證：互動式 CSS Selector 練習場</div>
+  <h2>改一個 Selector，<span class="gold">被選中的元素</span>就不同</h2>
+  <div class="grid-2 split-55">
+    <div class="stack">
+      <pre class="code demo-html">&lt;div id="board"&gt;
+ &lt;ul id="ul-01" class="news-list"&gt;
+  &lt;li class="cc hot featured" data-type="notice"&gt;
+   &lt;a class="link primary pinned" href="#more"
+      data-role="detail"&gt;看更多&lt;/a&gt;
+  &lt;/li&gt;
+  &lt;li class="cc" data-type="event"&gt;
+   &lt;div class="item-body"&gt;
+    &lt;a class="link secondary" href="#about"
+       data-role="info"&gt;關於&lt;/a&gt;
+   &lt;/div&gt;
+  &lt;/li&gt;
+ &lt;/ul&gt;
+ &lt;a class="link external" href="#help"&gt;校園幫助&lt;/a&gt;
+&lt;/div&gt;</pre>
+      <div>
+        <label for="css-query" class="code-title">自行輸入 CSS Selector</label>
+        <input id="css-query" class="selector-input" value="ul#ul-01 a" autocomplete="off" spellcheck="false" aria-label="CSS Selector">
+      </div>
+      <div class="preset-grid" aria-label="選擇器範例">
+        <button type="button" class="preset" data-css="ul#ul-01 a">後代 a：2</button>
+        <button type="button" class="preset" data-css="ul#ul-01 > a">直接子 a：0</button>
+        <button type="button" class="preset" data-css="ul#ul-01 > li">直接子 li：2</button>
+        <button type="button" class="preset" data-css="li.cc.hot.featured">多個 class：1</button>
+        <button type="button" class="preset" data-css='a[href="#more"][data-role="detail"]'>兩個屬性：1</button>
+        <button type="button" class="preset" data-css="li.cc > div.item-body > a">較深的 a：1</button>
+      </div>
+    </div>
+    <div class="panel stack">
+      <h3>實際 HTML 元素（橘色框＝符合）</h3>
+      <div class="demo-render" id="demo-stage">
+        <div id="board" class="mini-board">
+          <ul id="ul-01" class="news-list">
+            <li class="cc hot featured" data-type="notice"><a class="link primary pinned" href="#more" data-role="detail">看更多</a></li>
+            <li class="cc" data-type="event"><div class="item-body"><a class="link secondary" href="#about" data-role="info">關於</a></div></li>
+          </ul>
+          <a class="link external" href="#help">校園幫助</a>
+        </div>
+        <div id="match-overlay-layer" aria-hidden="true"></div>
+      </div>
+      <div id="selection-result" role="status" aria-live="polite">符合條件：2 個元素</div>
+      <p class="note selector-note">試試 <code>#ul-01</code>、<code>a.link</code>、<code>li[data-type="event"]</code>。錯誤語法也會提示。</p>
+    </div>
+  </div>
+</section>
+
+<!-- 08: HTTP comparison -->
+<section class="slide" data-title="請求與回應">
+  <div class="eyebrow">07 / 網頁資料從哪裡來？</div>
+  <h2>HTTP：先<span class="accent">請求 Request</span>，再收到<span class="mint">回應 Response</span></h2>
+  <div class="grid-2">
+    <div class="panel stack">
+      <h3>靜態 HTML</h3>
+      <div class="flowbar">
+        <div class="flowbox">程式 / 瀏覽器</div>
+        <div class="math-arrow">→</div>
+        <div class="flowbox">Web Server</div>
+        <div class="math-arrow">→</div>
+        <div class="flowbox highlight">HTML 回應</div>
+      </div>
+      <p><span class="tag sky">GET</span> 向伺服器發送網址和參數。</p>
+      <p><span class="tag mint">200 OK</span> 收到狀態碼、headers、HTML 等。</p>
+      <div class="callout">只要元素就在回傳的 HTML 中，<strong>requests + BeautifulSoup</strong> 通常就能解析。</div>
+    </div>
+    <div class="panel stack">
+      <h3>動態更新 DOM</h3>
+      <div class="timeline">
+        <div class="phase">取得<br>HTML</div>
+        <div class="phase">執行<br>JavaScript</div>
+        <div class="phase">fetch /<br>XHR</div>
+        <div class="phase">新增<br>元素</div>
+      </div>
+      <p>瀏覽器<strong>後續另發請求</strong>，取得 JSON / HTML，再改變畫面上的 DOM。</p>
+      <div class="callout warn"><strong>requests.get(頁面網址)</strong> 不會執行 JavaScript，因此不會自動得到後來新增的元素。</div>
+    </div>
+  </div>
+  <div class="bottom-line">補充：如果找到後續的資料 API，也可能直接用 <code>requests.get(API_URL)</code> 抓 JSON，不一定要 Selenium。</div>
+</section>
+
+<!-- 09: requests -->
+<section class="slide" data-title="requests 基本操作">
+  <div class="eyebrow">08 / Python：先取得伺服器的回應</div>
+  <h2><span class="accent">requests.get()</span>：向網址發送 GET 請求</h2>
+  <div class="grid-2 split-55">
+    <div class="stack">
+      <pre class="code compact"><span class="cm"># Import the HTTP library.</span>
+<span class="cm"># 匯入 HTTP 請求套件。</span>
+<span class="kw">import</span> requests
+
+<span class="cm"># Request the local teaching page.</span>
+<span class="cm"># 向本機練習網頁發送 GET 請求。</span>
+response = requests.<span class="fn">get</span>(
+  <span class="str">"http://127.0.0.1:8000/practice.html"</span>,
+  timeout=10
+)
+
+<span class="cm"># Decode Chinese text correctly.</span>
+<span class="cm"># 正確解碼中文 HTML。</span>
+response.encoding = <span class="str">"utf-8"</span>
+
+<span class="cm"># Print the status and HTML.</span>
+<span class="cm"># 印出狀態碼與 HTML。</span>
+<span class="fn">print</span>(response.status_code)
+<span class="fn">print</span>(response.text[:200])</pre>
+    </div>
+    <div class="stack">
+      <div class="panel"><h3><code>response.status_code</code></h3><p>HTTP 狀態碼；例如 <span class="mint strong">200</span> 是成功。</p></div>
+      <div class="panel"><h3><code>response.text</code></h3><p>伺服器回傳的<strong>文字內容</strong>，此例為 HTML。</p></div>
+      <div class="panel"><h3><code>timeout=10</code></h3><p>避免網路連線持續卡住；最長等待限制，不是固定睡 10 秒。</p></div>
+      <div class="callout warn">正確寫法是 <code>requests.get(url)</code>，不是 <code>requests(url)</code>。</div>
+    </div>
+  </div>
+  <div class="bottom-line">先在 ZIP 解壓縮後的教材資料夾執行 <code>python -m http.server 8000</code>，才能連線到本機練習網頁。</div>
+</section>
+
+<!-- 10: beautiful soup -->
+<section class="slide" data-title="BeautifulSoup 選取元素">
+  <div class="eyebrow">09 / 同一套 CSS Selector 用在 BeautifulSoup</div>
+  <h2><span class="mint">soup.select()</span> 選多個；<span class="accent">select_one()</span> 選第一個</h2>
+  <div class="grid-2 split-55">
+    <div>
+      <pre class="code compact"><span class="cm"># Import the HTML parser.</span>
+<span class="cm"># 匯入 HTML 解析器。</span>
+<span class="kw">from</span> bs4 <span class="kw">import</span> BeautifulSoup
+
+<span class="cm"># Parse the received HTML.</span>
+<span class="cm"># 解析已下載的 HTML。</span>
+soup = BeautifulSoup(response.text, <span class="str">"html.parser"</span>)
+
+<span class="cm"># Select all matching links.</span>
+<span class="cm"># 找出所有符合條件的連結。</span>
+links = soup.<span class="fn">select</span>(<span class="str">"#news-list > li.card > a"</span>)
+
+<span class="cm"># Visit each matching element.</span>
+<span class="cm"># 逐一處理選到的元素。</span>
+<span class="kw">for</span> link <span class="kw">in</span> links:
+  <span class="cm"># Print text and href.</span>
+  <span class="cm"># 印出文字與連結。</span>
+  <span class="fn">print</span>(link.get_text(strip=True), link.get(<span class="str">"href"</span>))</pre>
+    </div>
+    <div class="stack">
+      <div class="panel"><h3><code>soup.select("...")</code></h3><p>取得<strong>所有</strong>符合 Selector 的元素，回傳列表；此例 <span class="gold strong">2 筆</span>。</p></div>
+      <div class="panel"><h3><code>soup.select_one("...")</code></h3><p>取得<strong>第一個</strong>符合元素；找不到則回傳 <code>None</code>。</p></div>
+      <div class="panel"><h3><code>.get_text()</code>、<code>.get("href")</code></h3><p>分別取出元素的文字、指定的 HTML 屬性。</p></div>
+      <div class="callout">白板上的 CSS Selector，<strong>直接放入 <code>select()</code></strong>；不用改成其他定位語法。</div>
+    </div>
+  </div>
+</section>
+
+<!-- 11: Selenium -->
+<section class="slide" data-title="Selenium 找元素">
+  <div class="eyebrow">10 / Python：讓 Chrome 自己打開網頁</div>
+  <h2><span class="accent">Selenium</span>：看得到瀏覽器，也能操作現在的 DOM</h2>
+  <div class="grid-2 split-55">
+    <div class="stack">
+      <pre class="code compact"><span class="cm"># Import the browser controller.</span>
+<span class="cm"># 匯入瀏覽器控制工具。</span>
+<span class="kw">from</span> selenium <span class="kw">import</span> webdriver
+
+<span class="cm"># Import the CSS locator.</span>
+<span class="cm"># 匯入 CSS Selector 定位方式。</span>
+<span class="kw">from</span> selenium.webdriver.common.by <span class="kw">import</span> By
+
+<span class="cm"># Maximize and open Chrome.</span>
+<span class="cm"># 放大視窗並開啟 Chrome。</span>
+options = webdriver.ChromeOptions()
+options.add_argument(<span class="str">"--start-maximized"</span>)
+driver = webdriver.Chrome(options=options)
+driver.get(<span class="str">"http://127.0.0.1:8000/practice.html"</span>)</pre>
+    </div>
+    <div class="stack">
+      <div class="panel"><h3><span class="mint">一個</span>元素</h3><pre class="code compact">first = driver.find_element(
+  By.CSS_SELECTOR, <span class="str">"#news-list a"</span>
+)
+<span class="fn">print</span>(first.text)</pre></div>
+      <div class="panel"><h3><span class="gold">多個</span>元素</h3><pre class="code compact">links = driver.find_elements(
+  By.CSS_SELECTOR, <span class="str">"#news-list a"</span>
+)
+<span class="kw">for</span> link <span class="kw">in</span> links:
+  <span class="fn">print</span>(link.text)</pre></div>
+      <div class="callout">同樣的 CSS Selector，<strong>BeautifulSoup 看 HTML 回應</strong>；<strong>Selenium 看瀏覽器 DOM</strong>。</div>
+    </div>
+  </div>
+</section>
+
+<!-- 12: waiting and exit ticket -->
+<section class="slide" data-title="等待與課堂挑戰">
+  <div class="eyebrow">11 / 動態元素：等它出現再找</div>
+  <h2>不要猜載入時間；用 <span class="mint">WebDriverWait</span> 等條件</h2>
+  <div class="grid-2 split-55">
+    <div class="stack">
+      <pre class="code compact"><span class="cm"># Import explicit waiting tools.</span>
+<span class="cm"># 匯入顯性等待工具。</span>
+<span class="kw">from</span> selenium.webdriver.support.ui <span class="kw">import</span> WebDriverWait
+<span class="kw">from</span> selenium.webdriver.support <span class="kw">import</span> expected_conditions <span class="kw">as</span> EC
+
+<span class="cm"># Wait for a fetched element in the DOM.</span>
+<span class="cm"># 等待 fetch 新增的元素進入 DOM。</span>
+WebDriverWait(driver, 10).until(
+  EC.presence_of_element_located(
+    (By.CSS_SELECTOR, <span class="str">"li.card.dynamic"</span>)
+  )
+)
+
+<span class="cm"># Select every link after loading.</span>
+<span class="cm"># 載入完成後取得所有公告連結。</span>
+links = driver.find_elements(By.CSS_SELECTOR, <span class="str">"#news-list li.card a"</span>)
+
+<span class="cm"># Verify four records, then close.</span>
+<span class="cm"># 確認有四筆，再關閉瀏覽器。</span>
+<span class="fn">print</span>(len(links))  <span class="cm"># 4</span>
+driver.quit()</pre>
+    </div>
+    <div class="stack">
+      <div class="panel"><h3>觀念檢核</h3><p>① <code>ul &gt; a</code> 跟 <code>ul a</code> 差在哪裡？</p><p>② 如何同時選取具有 3 個 class 的 a？</p><p>③ 如何指定同時符合 2 個屬性值的元素？</p></div>
+      <div class="panel good"><h3>課堂實作</h3><p>用一個 CSS Selector，取得全部公告連結；再利用 <code>for</code> 逐筆輸出<strong>文字與 href</strong>。</p></div>
+      <div class="row"><span class="tag mint">選對元素</span><span class="tag sky">選多個→for</span><span class="tag gold">動態→先等待</span></div>
+    </div>
+  </div>
+</section>
+
+<div class="controls" aria-label="投影片導覽">
+  <button type="button" id="prev" aria-label="上一頁" title="上一頁（←）">‹</button>
+  <span id="page-counter">1 / 12</span>
+  <button type="button" id="next" aria-label="下一頁" title="下一頁（→）">›</button>
+  <button type="button" id="full" aria-label="切換全螢幕" title="全螢幕（F）" style="font-size:18px">⛶</button>
+</div>
+<div id="progress" aria-hidden="true"></div>
+<script>
+  // Collect the slide sections in their intended teaching order.
+  // 依照課程順序取得所有投影片。
+  const slides = [...document.querySelectorAll(".slide")];
+  // Track the currently visible slide index.
+  // 記錄目前顯示的投影片索引。
+  let current = 0;
+  // Show one slide, update navigation controls, and reset its scroll position.
+  // 切換顯示的投影片，同時更新導覽控制並重設捲動位置。
+  function showSlide(index) {
+    // Keep the requested slide index within the available range.
+    // 確保投影片索引不超出範圍。
+    current = Math.max(0, Math.min(slides.length - 1, index));
+    // Show only the selected slide.
+    // 只顯示目前選取的投影片。
+    slides.forEach((slide, i) => slide.classList.toggle("active", i === current));
+    // Return to the top when changing a slide.
+    // 換頁時將畫面移回投影片頂部。
+    slides[current].scrollTop = 0;
+    // Recalculate overlays only when the interactive slide is visible.
+    // 進入互動頁時重新計算可見元素的標示位置。
+    if (slides[current].querySelector("#demo-stage")) requestAnimationFrame(testSelector);
+    // Display the current slide number and total.
+    // 顯示目前頁碼與總頁數。
+    document.querySelector("#page-counter").textContent = `${current + 1} / ${slides.length}`;
+    // Disable impossible navigation actions at each end.
+    // 在第一頁與最後一頁停用無法執行的換頁按鈕。
+    document.querySelector("#prev").disabled = current === 0;
+    document.querySelector("#next").disabled = current === slides.length - 1;
+    // Update the reading progress indicator.
+    // 更新頁面底部的閱讀進度。
+    document.querySelector("#progress").style.width = `${(current + 1) / slides.length * 100}%`;
+  }
+  // Render selector matches with overlays without changing the example HTML.
+  // 不修改範例元素的 class 或 attribute，直接以圖層顯示配對結果。
+  function testSelector() {
+    // Read the exact CSS selector entered by the student.
+    // 取得學生輸入的原始 CSS Selector，不更動查詢語法。
+    const query = document.querySelector("#css-query").value.trim();
+    // Find the real HTML sample and separate, nonmatching overlay layer.
+    // 分別取得原始 HTML 練習區，以及不參與選擇的標示圖層。
+    const root = document.querySelector("#board");
+    const stage = document.querySelector("#demo-stage");
+    const layer = document.querySelector("#match-overlay-layer");
+    const output = document.querySelector("#selection-result");
+    // Remove previous highlight rectangles without modifying demo elements.
+    // 移除上一輪標示，但不修改範例元素本身的 class 或屬性。
+    layer.replaceChildren();
+    // Explain an empty query, rather than attempting to parse it.
+    // 輸入空白時顯示提醒，不將空字串當成 CSS 查詢。
+    if (!query) {
+      output.textContent = "請輸入 CSS Selector。";
+      return;
+    }
+    // Validate the CSS selector and return a clear error if invalid.
+    // 驗證選擇器語法，發生錯誤時顯示易懂訊息。
+    try {
+      // Match all descendants, plus the root when the selector targets it.
+      // 搜尋所有後代元素，並允許直接選取最外層的 div#board。
+      const matches = [...root.querySelectorAll(query)];
+      if (root.matches(query)) matches.unshift(root);
+      // Describe the matching count, including when no elements match.
+      // 顯示符合元素總數，包含零筆的情況。
+      output.textContent = `符合條件：${matches.length} 個元素`;
+      // Get the container position once to align every highlight rectangle.
+      // 取得練習區位置一次，用來定位所有橘色外框。
+      const containerRect = stage.getBoundingClientRect();
+      // Draw overlay rectangles; leave the students' HTML unchanged.
+      // 只在獨立圖層繪製外框，避免影響 class 或屬性比對結果。
+      for (const element of matches) {
+        const rect = element.getBoundingClientRect();
+        const overlay = document.createElement("div");
+        overlay.className = "match-overlay";
+        overlay.style.left = `${rect.left - containerRect.left + stage.scrollLeft}px`;
+        overlay.style.top = `${rect.top - containerRect.top + stage.scrollTop}px`;
+        overlay.style.width = `${rect.width}px`;
+        overlay.style.height = `${rect.height}px`;
+        layer.append(overlay);
+      }
+    // Report malformed selectors without interrupting the lesson.
+    // 遇到不合法的 CSS 時，顯示錯誤且不影響其他互動。
+    } catch (error) {
+      output.textContent = "CSS 語法不正確，請檢查空白、>、#、.、[ ]。";
+    }
+  }
+  // Advance to the previous slide when the teacher clicks the back control.
+  // 教師點擊上一頁按鈕時切換頁面。
+  document.querySelector("#prev").addEventListener("click", () => showSlide(current - 1));
+  // Advance to the next slide when the teacher clicks the forward control.
+  // 教師點擊下一頁按鈕時切換頁面。
+  document.querySelector("#next").addEventListener("click", () => showSlide(current + 1));
+  // Switch fullscreen mode when supported by the browser.
+  // 在瀏覽器支援時切換全螢幕模式。
+  function toggleFullscreen() {
+    // Enter fullscreen when currently shown in a normal window.
+    // 非全螢幕狀態時，進入全螢幕。
+    if (!document.fullscreenElement) document.documentElement.requestFullscreen?.();
+    // Exit fullscreen when currently presenting fullscreen.
+    // 已進入全螢幕時，結束全螢幕。
+    else document.exitFullscreen?.();
+  }
+  // Connect the fullscreen button to the fullscreen operation.
+  // 將全螢幕按鈕連接到切換功能。
+  document.querySelector("#full").addEventListener("click", toggleFullscreen);
+  // Support keyboard-controlled presentation navigation.
+  // 支援用鍵盤操作投影片導覽。
+  document.addEventListener("keydown", event => {
+    // Do not hijack arrow-key editing inside the selector input box.
+    // 在選擇器輸入框打字時，不攔截左右方向鍵。
+    if (document.activeElement?.id === "css-query") return;
+    // Move forwards with either right arrow, down arrow, or PageDown.
+    // 使用右、下方向鍵或 PageDown 前進。
+    if (["ArrowRight", "ArrowDown", "PageDown"].includes(event.key)) showSlide(current + 1);
+    // Move backwards with either left arrow, up arrow, or PageUp.
+    // 使用左、上方向鍵或 PageUp 返回。
+    if (["ArrowLeft", "ArrowUp", "PageUp"].includes(event.key)) showSlide(current - 1);
+    // Toggle fullscreen with the F key.
+    // 按 F 鍵切換全螢幕。
+    if (event.key.toLowerCase() === "f") toggleFullscreen();
+  });
+  // Recalculate selector matches as the student types.
+  // 學生每次修改選擇器時，重新計算配對結果。
+  document.querySelector("#css-query").addEventListener("input", testSelector);
+  // Use preset buttons to demonstrate common selector relationships.
+  // 透過範例按鈕示範常見的 CSS Selector 階層關係。
+  document.querySelectorAll("button[data-css]").forEach(button => {
+    // Replace the input with the selected sample and rerun the demonstration.
+    // 點選範例時將選擇器寫入輸入框，再次執行配對。
+    button.addEventListener("click", () => {
+      // Copy the chosen CSS Selector into the editable input box.
+      // 把按鈕所對應的 CSS Selector 放入輸入框。
+      document.querySelector("#css-query").value = button.dataset.css;
+      // Update the highlighted elements and matching count.
+      // 更新橘色標示與符合元素的數量。
+      testSelector();
+    });
+  });
+  // Reposition the highlighting rectangles when the browser size changes.
+  // 改變投影或瀏覽器尺寸時，重新定位橘色外框。
+  window.addEventListener("resize", () => {
+    if (slides[current].querySelector("#demo-stage")) testSelector();
+  });
+  // Display the first slide and initialize the interactive selector demo.
+  // 顯示第一頁，並初始化 CSS Selector 練習功能。
+  showSlide(0);
+  // Validate the default selector as soon as the page opens.
+  // 網頁開啟時先計算預設選擇器的結果。
+  testSelector();
+</script>
+</body>
+</html>
