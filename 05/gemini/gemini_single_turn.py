@@ -14,6 +14,16 @@ load_dotenv(Path(__file__).with_name(".env"))
 # ===== 設定區 =====
 API_KEY = os.getenv("GEMINI_API_KEY")
 
+
+'''
+Select the default model, with alternatives students can enable.
+選擇預設模型，學生可取消註解切換其他模型。
+'''
+MODEL = "gemma-4-26b-a4b-it"
+# MODEL = "gemini-3.5-flash-lite"
+# MODEL = "gemini-3.6-flash"
+
+
 # Create the Gemini API client.
 # 建立 Gemini API 用戶端。
 client = genai.Client(api_key=API_KEY)
@@ -30,7 +40,7 @@ config = types.GenerateContentConfig(
 # Send one question to Gemini.
 # 傳送單輪問題給 Gemini。
 response = client.models.generate_content(
-    model="gemini-3.5-flash-lite",
+    model=MODEL,
     contents="幸福的定義是什麼？",
     config=config,
 )

@@ -1,0 +1,8 @@
+﻿05｜對話 AI：兩階段實作流程（Gemini / Ollama）
+
+1. 選擇 gemini 或 ollama 資料夾，使用對應檔案。
+2. 新開 AI 對話，直接上傳「Flask_專案產生Prompt.md」和「xxxx_single_turn.py」，不必打字，送出。
+3. 下載產生的 Flask 專案並解壓縮，在專案資料夾的 Windows CMD 執行：python -m pip install -r requirements.txt；設定好 Gemini API Key 或 Ollama 連線後，執行：python app.py，體驗 history.json 多輪記憶。
+4. 回到同一個 AI 對話，直接上傳「Excel_BM25_檢索增強Prompt.md」和自己的 .xlsx，不必打字，送出；漏傳 Excel 就補傳。
+5. 下載更新後的 Flask 專案並解壓縮；需要保留舊對話時，複製舊的 history.json（Gemini 也要保留 .env），重新安裝 requirements.txt 後執行：python app.py。
+6. 在網頁勾選 Excel 檢索功能，測試 BM25 檢索增強對話。

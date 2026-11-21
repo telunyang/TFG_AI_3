@@ -8,29 +8,14 @@ import time
 from pathlib import Path
 import requests
 from contextlib import ExitStack
-
-'''
-Set the URL displayed in the Notebook ngrok cell.
-填入 Notebook 的 ngrok 公開網址。
-'''
 API_URL = 'https://REPLACE_WITH_YOUR_NGROK_DOMAIN'
-
-'''
-Verify the remote Notebook serves this specific model.
-確認遠端 Notebook 啟動的是這份 client 對應的模型。
-'''
 EXPECTED_SERVICE = '06_MiniMax_H3_影片生成_Kaggle'
 
 '''
-Choose t2v, i2v, flf2v, or r2v (1–9 reference images).
-選擇 t2v、i2v、flf2v 或 r2v（1～9 張參考圖）。
+Select t2v, i2v, l2v, flf2v, or r2v; reference media depend on the task.
+選擇 t2v、i2v、l2v、flf2v 或 r2v；R2V 可使用圖片、影片及音訊參考。
 '''
 TASK = 't2v'
-
-'''
-Describe the scene; R2V can refer to <Picture 1> etc.
-編輯場景描述；R2V 可以使用 <Picture 1> 等標記。
-'''
 PROMPT = '''
 A peaceful Taipei park with gentle wind and natural sounds.
 '''.strip()
@@ -40,17 +25,7 @@ Set the video dimensions and duration.
 設定影片尺寸與長度。
 '''
 WIDTH, HEIGHT, SECONDS = 384, 224, 5
-
-'''
-Set steps and the MiniMax-specific audio shift.
-設定步數與 MiniMax 專屬的 Audio Shift。
-'''
 STEPS, AUDIO_SHIFT = 20, 6.0
-
-'''
-Choose reference-image resize mode for R2V (match or max).
-設定 R2V 參考圖片縮放方式（match 或 max）。
-'''
 REF_IMAGE_SIZE = 'match'
 
 '''
@@ -58,55 +33,44 @@ Fix the seed or use -1 for random.
 固定種子，或用 -1 代表隨機。
 '''
 SEED = 42
-
-'''
-List image paths in first/last or reference order; t2v uses [].
-依首尾或參考圖順序填入路徑；t2v 使用 []。
-'''
 IMAGE_PATHS = []
 
 '''
-Send fields supported by the MiniMax H3 Notebook.
-傳送 MiniMax H3 Notebook 支援的欄位。
+Optional reference videos for R2V, in prompt order (up to three).
+R2V 可選的參考影片路徑，依 Prompt 編號排序（最多三段）。
 '''
+VIDEO_PATHS = []
+AUDIO_PATHS = []
+VIDEO_AUDIO = False  # True, False
+
+'''
+Use the Notebook's quantization, or choose a loaded alternative.
+留空沿用 Notebook 量化，或指定已經載入的量化格式。
+'''
+QUANT = ''
 PARAMS = dict(task=TASK, prompt=PROMPT, width=WIDTH, height=HEIGHT,
               seconds=SECONDS, steps=STEPS, audio_shift=AUDIO_SHIFT,
               ref_image_size=REF_IMAGE_SIZE, seed=SEED)
+
+if QUANT:
+    PARAMS['quant'] = QUANT
+
+PARAMS['video_audio'] = str(VIDEO_AUDIO).lower()
 
 '''
 Keep downloaded files in a separate local directory.
 將下載結果存至獨立資料夾。
 '''
 DOWNLOAD_DIR = Path('generated_results')
-
-'''
-Query the remote job once every five seconds.
-每五秒查詢一次工作狀態。
-'''
 POLL_SECONDS = 5
-
-'''
-Skip the ngrok browser warning for API requests and downloads.
-避免 ngrok 的瀏覽器提醒干擾 API 提交、查詢及下載。
-'''
 HEADERS = {'ngrok-skip-browser-warning': 'true'}
 
 '''
 Validate the reference-image count for this specific Notebook.
 依此 Notebook 支援的模式確認參考圖數量。
 '''
-IMAGE_COUNTS = {'t2v': (0, 0), 'i2v': (1, 1), 'flf2v': (2, 2), 'r2v': (1, 9)}
-
-'''
-Reuse a stable job ID for transient failures; give busy queues time to drain.
-暫時性失敗沿用同一筆工作 ID，讓滿載佇列有時間消化。
-'''
+IMAGE_COUNTS = {'t2v': (0, 0), 'i2v': (1, 1), 'l2v': (1, 1), 'flf2v': (2, 2), 'r2v': (0, 9)}
 MAX_SUBMIT_WAIT = 2 * 3600
-
-'''
-Keep checking long video jobs without waiting forever.
-長影片排隊可持續等待，但不會永久卡住。
-'''
 MAX_RESULT_WAIT = 24 * 3600
 
 '''
@@ -114,73 +78,70 @@ Accept a short ngrok outage without losing the original job.
 容許 ngrok 短暫斷線，保留原工作編號。
 '''
 MAX_OFFLINE_WAIT = 10 * 60
-
-'''
-Reattempt interrupted downloads at most three times.
-下載暫時中斷時，最多重試三次。
-'''
 MAX_DOWNLOAD_RETRIES = 3
 
 '''
 Submit exactly one logical job; retries reuse its ID and cannot duplicate inference.
 每次只提交一筆邏輯工作；重試使用相同 ID，避免重複推論。
 '''
-def submit_job(session, params=PARAMS, images=IMAGE_PATHS, api_url=API_URL):
+'''
+Measure each client stage without changing its return value or exception behavior.
+統計 Client 各階段耗時，不改變函式回傳值或原本的例外處理。
+'''
+def measure_time(label, function, *args, **kwargs):
+    started = time.perf_counter()
+    try:
+        return function(*args, **kwargs)
+    finally:
+        minutes, seconds = divmod(time.perf_counter() - started, 60)
+        elapsed = f'{int(minutes)} 分 {seconds:05.2f} 秒' if minutes else f'{seconds:.2f} 秒'
+        print(f'⏱ {label}耗時：{elapsed}')
 
+def submit_job(session, params=PARAMS, images=IMAGE_PATHS, api_url=API_URL):
     '''
     Validate this notebook's image requirements before opening files.
     先檢查此 Notebook 的圖片張數，再開啟檔案。
     '''
     expected = IMAGE_COUNTS.get(params['task'])
-    if expected is None or not expected[0] <= len(images) <= expected[1]:
-        raise ValueError(f'模式 {params["task"]} 的參考圖數量不正確；允許範圍：{IMAGE_COUNTS}')
-
-    '''
-    Check R2V picture labels against the exact number of uploaded images.
-    檢查 R2V Prompt 的圖片編號是否對應實際上傳數量。
-    '''
+    if expected is None or not expected[0] <= len(images) <= expected[1] or (params['task'] == 'r2v' and not (images or VIDEO_PATHS)):
+        raise ValueError('圖片張數不符；R2V 需要至少一張圖片或一段影片，音訊只能作為附加參考。')
+    if VIDEO_PATHS or AUDIO_PATHS:
+        if params['task'] != 'r2v' or len(VIDEO_PATHS) > 3 or len(AUDIO_PATHS) > 3:
+            raise ValueError('參考影片／音訊僅支援 R2V，且各最多 3 段。')
+    if params['task'] == 'r2v' and len(images) + len(VIDEO_PATHS) + len(AUDIO_PATHS) > 12:
+        raise ValueError('R2V 最多接受 12 個參考素材檔案。')
     if params['task'] == 'r2v':
         numbers = {int(n) for n in re.findall(r'<Picture\s+(\d+)>', params.get('prompt', ''), re.I)}
         if any(n < 1 or n > len(images) for n in numbers):
             raise ValueError('MiniMax R2V Prompt 指向不存在的 <Picture N> 圖片。')
-
-    '''
-    Assign a stable identity to this request, not to each network attempt.
-    同一筆請求固定使用一個 ID，網路重試不重新生成編號。
-    '''
+        for label, count in (('Video', len(VIDEO_PATHS)),
+                             ('Audio', len(AUDIO_PATHS) + (len(VIDEO_PATHS) if VIDEO_AUDIO else 0))):
+            numbers = [int(n) for n in re.findall(r'<%s\s+(\d+)>' % label, params.get('prompt', ''), re.I)]
+            if any(n < 1 or n > count for n in numbers):
+                raise ValueError(f'R2V Prompt 使用了不存在的 <{label} N> 參考素材。')
     request_id = uuid.uuid4().hex
     deadline = time.monotonic() + MAX_SUBMIT_WAIT
-
-    '''
-    Bound repeated transport failures separately from ordinary queue overload.
-    網路持續失敗時提早回報，不讓學生一直等到佇列等待期限。
-    '''
     network_failures = 0
     headers = dict(HEADERS, **{'X-Request-ID': request_id})
     while True:
         response = None
         try:
-
-            '''
-            Reopen upload streams for each attempt so retries send full files.
-            每次重試重新開啟檔案，避免送出已讀完的上傳資料。
-            '''
             with ExitStack() as stack:
                 files = []
                 for filename in images:
                     path = Path(filename)
                     stream = stack.enter_context(path.open('rb'))
                     files.append(('images', (path.name, stream)))
+                for field, paths in (('videos', VIDEO_PATHS), ('audios', AUDIO_PATHS)):
+                    for filename in paths:
+                        path = Path(filename)
+                        stream = stack.enter_context(path.open('rb'))
+                        files.append((field, (path.name, stream)))
                 url = api_url.rstrip('/') + '/generate'
                 if files:
                     response = session.post(url, data=params, files=files, headers=headers, timeout=(30, 180))
                 else:
                     response = session.post(url, json=params, headers=headers, timeout=(30, 180))
-
-            '''
-            Retry only temporary overloads and gateway failures.
-            只重試暫時滿載及閘道錯誤，不隱藏參數或權限錯誤。
-            '''
             if response.status_code not in (429, 502, 503, 504):
                 if not response.ok:
                     raise RuntimeError(f'提交失敗 HTTP {response.status_code}: {response.text[:800]}')
@@ -188,20 +149,10 @@ def submit_job(session, params=PARAMS, images=IMAGE_PATHS, api_url=API_URL):
             network_failures = 0
             reason = f'HTTP {response.status_code}: {response.text[:200]}'
         except (requests.Timeout, requests.ConnectionError) as error:
-
-            '''
-            The response may have been lost after acceptance; the ID prevents duplicates.
-            伺服器可能已接受工作卻遺失回應，固定 ID 可防止重複執行。
-            '''
             network_failures += 1
             if network_failures >= 12:
                 raise ConnectionError(f'連續 12 次連線失敗；請檢查 API_URL、ngrok 連線與工作 {request_id}。') from error
             reason = str(error)[:200]
-
-        '''
-        Respect a submission deadline rather than retrying indefinitely.
-        設定最長等待期限，避免無限重試。
-        '''
         remaining = deadline - time.monotonic()
         if remaining <= 0:
             raise TimeoutError(f'提交超過 {MAX_SUBMIT_WAIT} 秒；請稍後檢查服務。Request ID: {request_id}；最後錯誤：{reason}')
@@ -249,11 +200,6 @@ def wait_for_job(session, job_id, api_url=API_URL):
             print('生成狀態：', *[value for value in status if value is not None])
             previous = status
             last_notice = time.monotonic()
-
-        '''
-        A quiet long-running inference is not evidence that it has completed.
-        長時間沒有狀態變化不代表推論完成。
-        '''
         if time.monotonic() - last_notice >= 300:
             print(f'工作 {job_id} 仍在 {job["status"]} 狀態。')
             last_notice = time.monotonic()
@@ -276,11 +222,6 @@ def download_file(session, job_id, endpoint, filename, api_url=API_URL):
         try:
             with session.get(f'{api_url.rstrip("/")}/jobs/{job_id}/{endpoint}',
                              headers=HEADERS, stream=True, timeout=(30, 300)) as response:
-
-                '''
-                Expired outputs and invalid jobs need manual intervention.
-                結果過期或工作不存在時直接回報，不能盲目重試。
-                '''
                 if response.status_code not in (429, 502, 503, 504):
                     response.raise_for_status()
                 elif attempt == MAX_DOWNLOAD_RETRIES - 1:
@@ -301,10 +242,6 @@ def download_file(session, job_id, endpoint, filename, api_url=API_URL):
     raise RuntimeError('結果下載未完成')
 
 '''
-Run a single generation request and download only that job's results.
-提交一筆生成請求，並只下載該工作的結果。
-'''
-'''
 Check CUDA readiness before submitting the model-specific generation request.
 提交此模型專屬的生成請求前，先確認 Kaggle 的 CUDA 後端已就緒。
 '''
@@ -323,54 +260,23 @@ def check_gpu_backend(session):
     print('已偵測 CUDA：', '、'.join(status.get('gpu_devices', [])))
 
 def main():
-
     '''
     Show a direct setup error instead of retrying an unconfigured address.
     尚未填寫服務設定時直接提示，避免持續重試錯誤網址。
     '''
     if 'REPLACE_WITH_' in API_URL:
         raise ValueError('請先填入 Notebook 顯示的 ngrok API_URL。')
-
-    '''
-    Share one connection pool during submission and polling.
-    提交與查詢期間共用 HTTP 連線池。
-    '''
     with requests.Session() as session:
-
-        '''
-        Reject missing CUDA backends before adding a long-running job to the queue.
-        GPU 未就緒就立即提示，不讓學生無謂地等待生成。
-        '''
-        check_gpu_backend(session)
+        measure_time('GPU／服務檢查', check_gpu_backend, session)
 
         '''
         Submit exactly one generation job to the FIFO queue.
         向 FIFO 佇列提交一筆生成工作。
         '''
-        job_id = submit_job(session, PARAMS, IMAGE_PATHS)
-
-        '''
-        Print the identifier for troubleshooting or resuming downloads.
-        顯示工作編號，方便除錯或重新下載。
-        '''
+        job_id = measure_time('提交生成工作', submit_job, session, PARAMS, IMAGE_PATHS)
         print('工作編號：', job_id)
-
-        '''
-        Wait for this job while the queue processes earlier jobs.
-        在其他較早工作執行期間等待本次結果。
-        '''
-        job = wait_for_job(session, job_id)
-
-        '''
-        Download the completed output file or score archive.
-        下載完成的音訊、圖片、影片或樂譜封存檔。
-        '''
-        result = download_file(session, job_id, 'file', job['filename'])
-
-        '''
-        Show the actual local result path.
-        顯示生成結果的本機路徑。
-        '''
+        job = measure_time('佇列等待與生成', wait_for_job, session, job_id)
+        result = measure_time('下載成果', download_file, session, job_id, 'file', job['filename'])
         print('生成結果：', result)
 
         '''
@@ -378,27 +284,9 @@ def main():
         額外儲存影片最後影格，供接續 I2V／FLF2V 使用。
         '''
         if job.get('last_frame_available'):
+            frame = measure_time('下載成果', download_file, session, job_id, 'last-frame', 'last_frame.png')
 
-            '''
-            Download the PNG supplied by the Notebook.
-            下載 Notebook 擷取的 PNG 影格。
-            '''
-            frame = download_file(session, job_id, 'last-frame', 'last_frame.png')
-
-            '''
-            Show the saved frame path.
-            顯示影格儲存位置。
-            '''
             print('最後影格：', frame)
 
-'''
-Importing this file from another Python program does not generate anything.
-從其他 Python 程式匯入時，不會自動生成內容。
-'''
 if __name__ == '__main__':
-
-    '''
-    Start the example generation request.
-    執行範例生成請求。
-    '''
-    main()
+    measure_time('整體程式', main)
