@@ -1,0 +1,660 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>AI Agent 工作流程預覽器</title>
+<style>
+:root{font-family:system-ui,"Noto Sans TC","Microsoft JhengHei",sans-serif;color:#27344d;--bg:#f5f5ff;--line:#dfe2f3;--purple:#6759d4;--ink:#27344d;--muted:#62718a}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);font-size:16px}button,input,textarea{font:inherit}button{cursor:pointer}button:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px solid #9884ec;outline-offset:2px}.hidden,[hidden]{display:none!important}
+header{padding:22px max(2vw,16px);background:linear-gradient(110deg,#f3ecff,#effcff);border-bottom:1px solid #e2dff9}header h1{margin:0 0 6px;font-size:clamp(24px,2.8vw,35px)}header p{margin:0;color:var(--muted);line-height:1.6}.top{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}.mark{display:inline-flex;align-items:center;gap:10px;font-weight:800;color:#6759d4;font-size:14px;margin-bottom:9px}.small-note{font-size:13px;color:#586d83}.app{width:min(98%,1900px);margin:20px auto 54px}.card{background:#fff;border:1px solid var(--line);border-radius:20px;box-shadow:0 7px 24px #3539740c;padding:19px;margin-bottom:16px}.btn{border:1px solid #d4d7ea;background:white;color:#3b4b68;border-radius:12px;padding:11px 15px;min-height:43px;font-weight:750}.btn:hover{background:#f1f4ff}.btn.primary{background:var(--purple);color:#fff;border-color:var(--purple)}.btn.primary:hover{background:#4b40b2}.actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.tag{display:inline-flex;align-items:center;background:#ecedfb;color:#544dab;border-radius:30px;padding:5px 10px;font-size:13px;font-weight:700}.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.metric{padding:14px;border:1px solid var(--line);background:#fafbff;border-radius:13px}.metric strong{display:block;font-size:19px;color:#5044b0}.metric span{font-size:13px;color:#64738c}.heading{display:flex;justify-content:space-between;gap:14px;align-items:center;flex-wrap:wrap;margin-bottom:12px}.heading h2{font-size:21px;margin:0}.heading p{color:var(--muted);margin:5px 0 0;font-size:14px}.dropzone{padding:22px;text-align:center;border:2px dashed #aea7ea;background:#faf8ff;border-radius:15px;cursor:pointer;line-height:1.65}.dropzone.dragging{background:#e6e0ff}.dropzone strong{display:block;font-size:18px;color:#5747ad}.dropzone span{color:#667590;font-size:14px}.info{font-size:13px;line-height:1.8;color:#66738c}.notice{padding:11px 14px;background:#edf9f7;border:1px solid #cbece6;border-radius:11px;font-size:14px;color:#326b65}.warning{background:#fff7e9;border-color:#f5dfb4;color:#8c5e23}.graph-shell{position:relative;max-width:100%;border:1px solid #d3d5f2;border-radius:17px;overflow:auto;height:min(72vh,790px);min-height:480px;background:#fbfbff;scrollbar-color:#b3b6dd transparent}.graph-inner{position:relative;transform-origin:0 0;background:radial-gradient(#d4d7f1 1px,transparent 1px);background-size:23px 23px}.graph-inner svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none}.graph-inner svg .edge-hit{stroke:transparent;stroke-width:19;fill:none;pointer-events:stroke;cursor:pointer}.graph-inner svg .edge-hit:hover{stroke:#7268e526}.graph-inner svg .selected{filter:drop-shadow(0px 0px 4px #8b70e8)}.agent-node{position:absolute;background:#fff;border:2px solid #b6a9f7;border-radius:16px;width:258px;height:136px;box-shadow:0 7px 15px #37426712;z-index:1;overflow:visible}.agent-node{touch-action:none;user-select:none}.agent-node.dragging{z-index:4;cursor:grabbing;box-shadow:0 12px 29px #45487530}.agent-node button.node-inner{touch-action:none}.agent-node.router{border-color:#ad97f7;background:#fcfaff}.agent-node.worker{border-color:#86bedc;background:#fbfeff}.agent-node.executor{border-color:#82d8c2;background:#f8fffd}.agent-node.judger{border-color:#f2be74;background:#fffdf6}.agent-node.web{border-color:#ebb0c8;background:#fff9fc}.agent-node button.node-inner{display:block;width:100%;height:100%;text-align:left;border:0;background:none;padding:14px 14px 12px;color:inherit;cursor:pointer;border-radius:14px}.agent-node.active{outline:4px solid #6a5ad755;outline-offset:2px}.node-type{display:flex;align-items:center;justify-content:space-between;font-size:13px;font-weight:850;opacity:.92;color:#6658b0;gap:8px}.agent-node.executor .node-type{color:#16846e}.agent-node.worker .node-type{color:#357fa5}.agent-node.judger .node-type{color:#b4752a}.agent-node.web .node-type{color:#ba557f}.node-name{font-size:16px;font-weight:850;margin:12px 0 5px;line-height:1.35;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.node-caption{font-size:13px;color:#8493a9;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.port{position:absolute;width:20px;height:20px;border-radius:50%;border:3px solid #fff;background:#7d91bb;box-shadow:0 0 0 2px #afbcdf;z-index:2}.port.in{left:-12px;top:50%;transform:translateY(-50%)}.port.out{right:-12px;top:50%;transform:translateY(-50%);background:#647dcc}.port.bottom{left:50%;bottom:-12px;transform:translateX(-50%);background:#68b8b0}.agent-node.router .port.out{background:#7965d8}.agent-node.judger .port.bottom{background:#e6a851}.node-detail{display:grid;grid-template-columns:minmax(230px,.85fr) minmax(0,1.15fr);gap:16px;align-items:start}.detail-title{font-size:18px;font-weight:850;margin:0 0 10px}.detail{background:#f8faff;border:1px solid #e3e6f4;border-radius:14px;padding:16px;line-height:1.65}.detail dl{margin:0;display:grid;grid-template-columns:105px minmax(0,1fr);gap:11px}.detail dt{font-size:14px;color:#697a92;font-weight:800}.detail dd{margin:0;overflow-wrap:anywhere;font-size:14px;white-space:pre-wrap}.relation-item{display:flex;gap:12px;align-items:flex-start;border-bottom:1px solid #edf0f7;padding:11px 0;font-size:14px;line-height:1.6;cursor:pointer}.relation-item:last-child{border:0}.relation-item.selected{background:#f2efff;border-radius:9px}.relation-item b{display:block}.relation-badge{flex:0 0 auto;border-radius:9px;padding:4px 8px;font-size:12px;background:#ebf1f7;color:#4d6990;font-weight:800}.relation-badge.feedback{background:#fff1de;color:#9b6528}.relation-badge.result{background:#e4f2fd;color:#387da8}.relation-badge.dependency{background:#efeafb;color:#7655a3}.relation-badge.toolcall,.relation-badge.internal{background:#e2f8ef;color:#27816a}.text-block{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit}.columns{display:grid;grid-template-columns:1fr 1fr;gap:15px}.copybox{width:100%;min-height:170px;border:1px solid var(--line);padding:14px;border-radius:12px;resize:vertical;line-height:1.6;background:#fbfbff;color:#27344d}.fineprint{font-size:13px;color:#687a91;line-height:1.7}.footer{padding:10px 4px;color:#7a859b;font-size:13px;text-align:center}
+@media(max-width:800px){.grid3{grid-template-columns:1fr}.node-detail,.columns{grid-template-columns:1fr}.card{padding:15px}.graph-shell{height:65vh;min-height:420px}.heading h2{font-size:19px}.actions{gap:7px}.btn{padding:9px 11px;font-size:14px}.detail dl{grid-template-columns:95px minmax(0,1fr)}}
+</style>
+</head>
+<body>
+<header><div class="top"><div><div class="mark">✦ AI Agent 工作流程預覽器　·　自然語言需求轉流程</div><h1>從自然語言需求，檢視 AI Agent 工作流程</h1><p>AI 根據需求規劃角色與連線；此頁用於預覽與確認，可拖曳角色卡片釐清連線，不需要手動建立節點。</p></div><span class="tag">離線可用 · 不需要 API Key</span></div></header>
+<main class="app">
+<section class="card"><div class="heading"><div><h2>① 匯入 AI 幫你設計的 JSON</h2><p>先向 AI 提供填好的 01_專案需求表.docx 與 02_AI流程規劃與修改.md；取得 JSON 後在這裡打開。</p></div><div class="actions"><button id="example-code" class="btn">程式開發範例</button><button id="example-rag" class="btn">資訊檢索範例</button></div></div><div id="dropzone" class="dropzone" tabindex="0" role="button" aria-label="選擇或拖曳 JSON 檔案"><strong>＋ 點擊選取 JSON，或把檔案拖進這裡</strong><span>支援需求規劃 JSON 與既有專案設計 JSON，不會上傳到網路</span></div><input type="file" accept=".json,application/json" id="file" hidden><p id="status" class="info" role="status" aria-live="polite">已載入程式開發示範；可以替換成自己的 JSON。</p></section>
+<section class="card"><div class="heading"><div><h2 id="project-title">專題名稱</h2><p id="project-scenario"></p></div><span class="tag" id="project-status">待確認設計</span></div><div class="grid3"><div class="metric"><strong id="count-nodes">0</strong><span>Agent／工具數量</span></div><div class="metric"><strong id="count-edges">0</strong><span>工作關係</span></div><div class="metric"><strong id="count-resources">0</strong><span>可選外部資源</span></div></div><p id="resource-summary" class="info"></p><div id="alerts"></div></section>
+<section class="card"><div class="heading"><div><h2>② 檢視 Agent 如何協作</h2><p>點選角色卡片看說明；點選線條看交接條件。橘色虛線代表退回修改，藍色虛線代表成果回傳。</p></div><div class="actions"><button id="show-extra" class="btn" type="button" aria-pressed="true">精簡線條</button><button id="zoom-out" class="btn" aria-label="縮小地圖">－</button><span id="zoom-label" class="tag">100%</span><button id="zoom-in" class="btn" aria-label="放大地圖">＋</button><button id="zoom-fit" class="btn">顯示全圖</button><button id="reset-layout" class="btn" type="button">還原自動排版</button></div></div><div id="graph-shell" class="graph-shell"><div id="graph-inner" class="graph-inner"><svg id="edges-svg" aria-label="AI Agent 工作關係圖"></svg><div id="nodes"></div></div></div><p class="fineprint">拖曳卡片可調整位置、釐清連線；連線會同步更新。按「下載目前 JSON」可保存排版，下次匯入會還原。實線＝安排工作／呼叫工具；虛線＝結果回傳、退回修改或資料依賴。卡片位置不影響真正的執行順序。</p></section>
+<section class="card"><div class="heading"><div><h2>③ 閱讀角色與工作關係</h2><p>查看各角色職責、輸入輸出，以及最終結果的回傳位置。</p></div></div><div class="notice" style="margin-bottom:14px">想修改流程？將最新的 <strong>AI_Agent_流程設計.json</strong> 與 <strong>02_AI流程規劃與修改.md</strong> 一起交給 AI，再直接說想修改什麼。新版 JSON 重新匯入此頁即可，不必重填 Word。</div><div class="node-detail"><div class="detail"><h3 class="detail-title" id="selected-title">選擇角色</h3><dl id="agent-details"></dl></div><div class="detail"><h3 class="detail-title">這些線條代表什麼？</h3><div id="relation-list"></div></div></div></section>
+<section class="card"><div class="heading"><div><h2>④ 確認後交給 ChatGPT／Gemini 進行 Vibe Coding</h2><p>確認流程後，交給 AI 最終 JSON + 04_Flask專案開發.md；也可以直接下載本頁產生的開發指令（已內含 JSON）。</p></div></div><div class="actions"><button class="btn primary" id="download-prompt">下載含 JSON 的開發指令（選用）</button><button class="btn" id="download-json">下載目前 JSON</button><button class="btn" id="copy-summary">複製工作流程說明</button></div><p class="fineprint">本頁只負責設計檢查，不會執行模型或生成 Flask 專案。真正的 .env 及金鑰留在本機，不要上傳給 AI 平台。</p><details><summary>需要給 AI 的摘要與檢查事項</summary><textarea id="summary" class="copybox" readonly></textarea></details></section>
+<div class="footer">AI Agent 工作流程預覽器 · JSON 驅動 · 本機預覽、不傳送資料、無須了解 AG2 實作細節</div>
+</main>
+<script type="application/json" id="embedded-code">{
+  "schema_version": 6,
+  "prompt": null,
+  "entry": {
+    "mode": "router",
+    "target": "amwrga4pvldcva"
+  },
+  "project": {
+    "name": "Python 程式開發團隊",
+    "scenario": "建立一個讓使用者以自然語言提出 Python 程式需求的網站，例如「請寫一個 9×9 乘法表」。Router 接收需求後交給 PM Agent 訂出規格與驗收條件，PM 委派程式設計師 Agent 撰寫程式。程式設計師可在隔離環境內重複寫入程式、執行 Python／pytest、檢查錯誤並修正；PM 也要獨立執行測試，若不符合需求就附完整錯誤資訊退回修正，最多 3 輪。驗收完成或達重試上限後，PM 把狀態與成果回報 Router；Router 用繁體中文說明、呈現完整程式碼，必要時提供經授權檔案下載。每個 Agent／工具的進度與錯誤即時顯示在網頁。",
+    "inputs": "自然語言程式需求（預設示範：產生 9×9 乘法表）；輸出副檔名（例如 .py／.txt）；要顯示程式碼或下載檔案；可選的測試條件",
+    "outputs": "Python 程式碼、程式執行輸出、PM 驗收結果、修改與測試紀錄；需要時提供由 Flask 安全下載的 .py／.txt／.zip 檔",
+    "rules": "僅限經授權的工作目錄；開發程式碼使用隔離容器或受限執行器，不得在 Flask 所在的 Conda 主環境中不受限制地執行使用者或模型生成的 Shell。程式設計師可自行有限次測試與除錯，PM 獨立驗收最多 3 輪；即使失敗也必須回報。技術搜尋視需要使用 ddgs，優先官方 Python／PyPI 文件。套件安裝需確認版本與使用者授權，不得自行修改主環境或安裝不明來源軟體。所有檔案下載僅限任務產物目錄；禁止路徑穿越、任意執行外部指令與洩漏 .env。",
+    "os": "Windows",
+    "runtime": "local",
+    "conda_name": ""
+  },
+  "agents": [
+    {
+      "id": "amwrga4pvldcva",
+      "name": "開發任務總控",
+      "role": "router",
+      "purpose": "接收使用者需求，確認程式語言、功能、交付格式與是否需下載檔案；委派 PM Agent 管理開發與驗收；只回報真實測試結果，最後依使用者要求提供程式碼或檔案連結。",
+      "inputs": "使用者的自然語言程式需求、指定副檔名、是否需要下載程式檔",
+      "outputs": "繁體中文開發摘要、可核對的測試結果、程式碼或經授權的檔案下載連結",
+      "tools": "",
+      "acceptance": "完整反映 PM 驗收狀態；失敗時清楚說明；下載的檔案必須是實際生成且位於允許工作目錄的成果",
+      "system_prompt": "",
+      "provider": "ollama",
+      "model": "",
+      "endpoint": "",
+      "env": "",
+      "preset": "coding_router",
+      "x": 340,
+      "y": 185
+    },
+    {
+      "id": "amwrga4pv1x4t4",
+      "name": "PM 專案經理",
+      "role": "judger",
+      "purpose": "將需求轉成驗收條件及測試案例，委派程式設計師開發；收到程式與執行結果後，使用受控執行工具獨立驗收，失敗就附具體錯誤及重現步驟要求修改，最多 3 輪；通過或到達上限後向總控回報真實結果。",
+      "inputs": "使用者需求、程式設計師提交的程式檔、測試報告與錯誤紀錄",
+      "outputs": "工作規格、驗收條件、修正意見、最終測試狀態及交付檔案清單",
+      "tools": "受控的程式執行／測試工具，用於 PM 獨立驗證；以 AG2 Agent.as_tool() 委派程式設計師。",
+      "acceptance": "例如 9×9 乘法表：完整涵蓋 1～9 的乘法結果，輸出格式正確，pytest／邊界案例通過；最多要求 3 輪修正，未通過時仍要回報失敗。",
+      "system_prompt": "",
+      "provider": "ollama",
+      "model": "",
+      "endpoint": "",
+      "env": "",
+      "preset": "coding_pm",
+      "x": 655,
+      "y": 185
+    },
+    {
+      "id": "amwrga4pvn489c",
+      "name": "Python 程式設計師",
+      "role": "worker",
+      "purpose": "依 PM 提供的規格撰寫 Python 程式與自動測試；在指定工作目錄內用受限工具寫檔、執行、讀取 stdout/stderr、修改並再次測試。自行完成有限次的開發／除錯循環，再將成果、測試證據及未解決問題交回 PM。",
+      "inputs": "PM 的規格、測試案例、前一輪 stderr／stdout／失敗條件",
+      "outputs": "完整 Python 檔案、必要測試、執行紀錄、錯誤修正摘要、產物路徑",
+      "tools": "使用受控 SandboxShellTool／SandboxCodeTool 或隔離工作目錄內的 Python 執行工具；必要時使用 ddgs 搜尋官方文件與 PyPI。",
+      "acceptance": "程式可在受限的 Python 環境實際執行；測試成功且沒有冒充結果；自行修正失敗時應附完整診斷並回報 PM。",
+      "system_prompt": "",
+      "provider": "ollama",
+      "model": "",
+      "endpoint": "",
+      "env": "",
+      "preset": "coding_programmer",
+      "x": 970,
+      "y": 45
+    },
+    {
+      "id": "amwrga4pvu5au4",
+      "name": "安全程式執行與測試工具",
+      "role": "executor",
+      "purpose": "在每次任務專屬的隔離工作目錄中寫入程式、執行 Python、pytest 和安全的檔案檢查；回傳退出碼、stdout、stderr、執行時間及產生的檔案資訊。程式設計師可用它修正問題，PM 也能用它獨立驗收；禁止讀取 .env 或未授權的檔案。",
+      "inputs": "run_id、專屬工作目錄、已檢查的程式內容／檔案路徑、受允許的測試命令",
+      "outputs": "exit_code、stdout、stderr、timeout、執行時間、測試摘要、產物清單",
+      "tools": "AG2 SandboxShellTool 與 DockerEnvironment／隔離程序；限制時間、資源、路徑、網路與允許命令。應優先使用與 Flask 主環境隔離的 Python 執行環境。",
+      "acceptance": "實際程式輸出與 exit code 可核對；超時／拒絕命令／異常必須回報；不得將 .env 或金鑰帶入執行環境。",
+      "system_prompt": "",
+      "provider": "none",
+      "model": "",
+      "endpoint": "",
+      "env": "",
+      "preset": "coding_runner",
+      "x": 1270,
+      "y": 180
+    },
+    {
+      "id": "amwrga4pvmcuou",
+      "name": "技術文件搜尋工具",
+      "role": "executor",
+      "purpose": "在確有需要時，使用 ddgs 搜尋 Python、PyPI 或官方文件的最新資訊，回傳標題、來源網址與摘要；應優先查官方文件、確認版本與發布日期，不依賴搜尋摘要直接執行不明程式碼。",
+      "inputs": "明確的技術查詢，如 pytest 最新相容版本或 Python 官方 API",
+      "outputs": "標題、URL、摘要、查詢日期與能查核的套件版本",
+      "tools": "ddgs（from ddgs import DDGS），必要時讀取官方 PyPI／文件網站。",
+      "acceptance": "沒有搜到資料時應如實回報；只引用實際檢索結果，對不確定的套件版本不得猜測。",
+      "system_prompt": "",
+      "provider": "none",
+      "model": "",
+      "endpoint": "",
+      "env": "",
+      "preset": "coding_search",
+      "x": 1270,
+      "y": 365
+    }
+  ],
+  "edges": [
+    {
+      "id": "amwrga4pv0duhw",
+      "from": "amwrga4pvldcva",
+      "to": "amwrga4pv1x4t4",
+      "type": "delegate",
+      "condition": "使用者提出程式需求時，委派 PM 建立規格、追蹤開發及驗收；PM 完成後將結果回傳總控",
+      "payload": "user_request, requested_extension, acceptance_preferences → spec, final_status, artifacts"
+    },
+    {
+      "id": "amwrga4pvni7fr",
+      "from": "amwrga4pv1x4t4",
+      "to": "amwrga4pvn489c",
+      "type": "delegate",
+      "condition": "PM 完成可驗收規格後，委派程式設計師寫程式；子任務完成時結果自動回到 PM",
+      "payload": "requirements, test_cases, workspace_id → source_code, files, test_report"
+    },
+    {
+      "id": "amwrga4pv99fx6",
+      "from": "amwrga4pvn489c",
+      "to": "amwrga4pvu5au4",
+      "type": "toolcall",
+      "condition": "寫出新程式或需要除錯時，在隔離環境寫檔、執行 Python／pytest；在子任務內可反覆呼叫但有時間／次數上限",
+      "payload": "workspace_id, source_file, test_command → exit_code, stdout, stderr, artifacts"
+    },
+    {
+      "id": "amwrga4pv07k1t",
+      "from": "amwrga4pv1x4t4",
+      "to": "amwrga4pvu5au4",
+      "type": "toolcall",
+      "condition": "收到程式設計師成果後，PM 必須獨立執行驗收測試，不僅相信設計師自述",
+      "payload": "workspace_id, accepted_artifacts, acceptance_tests → exit_code, stdout, stderr, test_results"
+    },
+    {
+      "id": "amwrga4pvy4913",
+      "from": "amwrga4pv1x4t4",
+      "to": "amwrga4pvn489c",
+      "type": "feedback",
+      "condition": "PM 發現 bug、測試失敗或需求不符，且還沒超過 3 輪修正時，附失敗案例與錯誤輸出退回程式設計師",
+      "retries": 3,
+      "payload": "failed_assertions, exit_code, stderr, stdout, requested_fixes"
+    },
+    {
+      "id": "amwrga4pvqwreb",
+      "from": "amwrga4pvn489c",
+      "to": "amwrga4pvmcuou",
+      "type": "toolcall",
+      "condition": "確實需要查詢最新 Python、PyPI 套件資訊或 API 文件時才呼叫；一般簡單程式不必搜尋",
+      "payload": "query, package_name → official_urls, snippets, dates"
+    },
+    {
+      "id": "amwrga4pvmoedx",
+      "from": "amwrga4pv1x4t4",
+      "to": "amwrga4pvldcva",
+      "type": "result",
+      "condition": "PM 驗收通過，或已達最多 3 次修正上限：回報成功或失敗、真實測試資訊、成果檔案；Router 不應重啟同一任務",
+      "payload": "acceptance_status, source_code, test_summary, artifact_paths, failure_reason"
+    }
+  ]
+}</script>
+<script type="application/json" id="embedded-rag">{
+  "schema_version": 6,
+  "prompt": null,
+  "entry": {
+    "mode": "router",
+    "target": "amwrga4pvirtz0"
+  },
+  "project": {
+    "name": "醫療知識檢索系統",
+    "scenario": "建立一個可供使用者輸入一般醫療知識問題的 Flask 網站。使用者可提供經授權的 Excel／CSV／SQLite／JSON／YAML 知識資料、指定 top-k 與檢索模式（BM25、BGE-M3 Dense、直接讀取小量文件）。系統先讀取並整理資料，再檢索相關證據，將證據交給問答 Agent 作答，Judger 檢查回答與來源是否相符。所有 Agent、工具與模型進度及錯誤需即時顯示在 Web；不應對個人提供診斷或處方。",
+    "inputs": "使用者問題；本機或授權上傳的 .xlsx／.csv／.sqlite／.db／.json／.yaml 檔；retrieval_mode；top_k（預設 5）；Ollama BGE-M3 URL 或獨立 BGE-M3 Flask embedding API（可選）",
+    "outputs": "繁體中文知識性回答；top-k 檢索段落、相似度／BM25 分數；可點選來源 URL／Title（若原始資料有提供）、檔案名稱與紀錄 ID；檢索及 Agent 執行紀錄",
+    "rules": "醫療知識教育用途，非診斷或治療；引用必須來自實際命中紀錄，不得捏造 URL／Title。少量測試資料優先；未授權資料不可上傳雲端模型。BM25 必須支援中／英斷詞；BGE-M3 可使用 Ollama embeddings 或另外啟動全參數 Flask embedding service；不得將 embedding 模型當聊天模型。索引需隨資料變更更新。",
+    "os": "Windows",
+    "runtime": "local",
+    "conda_name": ""
+  },
+  "agents": [
+    {
+      "id": "amwrga4pvirtz0",
+      "name": "醫療問題總控",
+      "role": "router",
+      "purpose": "接收使用者的醫療知識問題，確認資料來源與問題範圍，安排檢索、回答及查核；不提供個人診斷。",
+      "inputs": "",
+      "outputs": "",
+      "tools": "",
+      "acceptance": "",
+      "system_prompt": "",
+      "provider": "ollama",
+      "model": "",
+      "endpoint": "",
+      "env": "",
+      "preset": "medical_router",
+      "x": 340,
+      "y": 180
+    },
+    {
+      "id": "amwrga4pvhx7kl",
+      "name": "知識資料讀取器",
+      "role": "executor",
+      "purpose": "由知識檢索器依需要呼叫的內部資料讀取工具。安全讀取使用者授權的 Excel（.xlsx）、CSV、SQLite、JSON、YAML；統一成文件／段落紀錄，保留來源欄位。一般問答若已有有效索引，不必重新讀取原始檔。",
+      "inputs": "使用者上傳或指定的經授權資料檔（.xlsx、.csv、.db、.sqlite、.json、.yaml、.yml）",
+      "outputs": "標準化文件紀錄、文字段落、來源 metadata、讀取錯誤報告",
+      "tools": "Python：csv、sqlite3、json（標準函式庫）；openpyxl／pandas（Excel）；PyYAML（YAML）。僅讀取允許的路徑。",
+      "acceptance": "能依不同格式讀取測試資料；每個段落有 document_id、chunk_id、content、source_file、source_title、source_url（若原資料有提供）",
+      "system_prompt": "",
+      "provider": "none",
+      "model": "",
+      "endpoint": "",
+      "env": "",
+      "preset": "medical_loader",
+      "x": 705,
+      "y": 365
+    },
+    {
+      "id": "amwrga4pvwufaz",
+      "name": "知識檢索器",
+      "role": "executor",
+      "purpose": "依 Web 上使用者選擇的檢索模式執行：① BM25 中文／英文斷詞與排序；② BGE-M3 dense retrieval，使用 Ollama embeddings 或獨立全參數 BGE-M3 Flask API；③ 小量資料的直接讀取檢索。只回傳 top-k 相關段落與來源資訊，不能假裝有證據。",
+      "inputs": "標準化段落、使用者查詢、retrieval_mode、top_k",
+      "outputs": "top-k 段落、分數、來源 metadata、檢索模式、真實錯誤",
+      "tools": "BM25：實作 BM25 並測試中文 jieba／英文 tokenization；Dense：Ollama bge-m3 /api/embed 或獨立 BAAI/bge-m3 全參數 Flask API；Direct：限小量資料。保持索引與模型版本一致。",
+      "acceptance": "用中／英文查詢有可驗證 top-k，且每個命中都能追溯到原始紀錄；無法使用 dense 時不得偷偷改用假向量。",
+      "system_prompt": "",
+      "provider": "none",
+      "model": "",
+      "endpoint": "",
+      "env": "",
+      "preset": "medical_retriever",
+      "x": 705,
+      "y": 35
+    },
+    {
+      "id": "amwrga4pvf5ksv",
+      "name": "知識問答員",
+      "role": "worker",
+      "purpose": "只根據檢索出的證據回答一般醫療知識問題，區分證據與推論；每個重要主張應附對應來源（標題、URL、檔案、紀錄 ID）。找不到證據時明確說明；不得進行個人診斷或給出個人化處方。",
+      "inputs": "醫療知識問題與真實檢索結果（段落及來源欄位）",
+      "outputs": "繁體中文回答、逐項可核對的引用清單、不足證據提示",
+      "tools": "",
+      "acceptance": "",
+      "system_prompt": "",
+      "provider": "ollama",
+      "model": "",
+      "endpoint": "",
+      "env": "",
+      "preset": "medical_answerer",
+      "x": 705,
+      "y": 205
+    },
+    {
+      "id": "amwrga4pvl9fuo",
+      "name": "證據檢查員",
+      "role": "judger",
+      "purpose": "逐一核對回答是否受檢索段落支持、引用的 URL／Title 是否真正來自原始資料；找不到資料、引用不符或醫療建議越界時要求修正，最多兩次。",
+      "inputs": "",
+      "outputs": "",
+      "tools": "",
+      "acceptance": "引用僅使用資料實際提供的來源，不編造 URL 或 Title；回答有適當的非診斷聲明。",
+      "system_prompt": "",
+      "provider": "ollama",
+      "model": "",
+      "endpoint": "",
+      "env": "",
+      "preset": "medical_judger",
+      "x": 1030,
+      "y": 205
+    }
+  ],
+  "edges": [
+    {
+      "id": "amwrga4pvw2hs6",
+      "from": "amwrga4pvirtz0",
+      "to": "amwrga4pvwufaz",
+      "type": "toolcall",
+      "condition": "每次使用者提出問題時，總控先呼叫檢索器；資料是否需要重新讀取，由檢索器內部檢查索引狀態",
+      "payload": "question, retrieval_mode, top_k, index_id"
+    },
+    {
+      "id": "amwrga4pvuehu6",
+      "from": "amwrga4pvwufaz",
+      "to": "amwrga4pvhx7kl",
+      "type": "internal",
+      "condition": "只有索引不存在、資料更新、索引過期或使用者指定重新建置時，檢索器才呼叫資料讀取器；若索引有效，直接執行檢索",
+      "payload": "dataset_path, index_version → documents, chunks, source_metadata"
+    },
+    {
+      "id": "amwrga4pvll5n4",
+      "from": "amwrga4pvwufaz",
+      "to": "amwrga4pvf5ksv",
+      "type": "dependency",
+      "condition": "檢索結果由總控接收並轉交問答員，不是檢索器直接啟動問答 Agent",
+      "payload": "top_k_chunks, scores, source_metadata"
+    },
+    {
+      "id": "amwrga4pvrvq2o",
+      "from": "amwrga4pvirtz0",
+      "to": "amwrga4pvf5ksv",
+      "type": "conditional",
+      "condition": "檢索結果已準備好時，由總控委派問答員；沒有證據時明確回報資料不足"
+    },
+    {
+      "id": "amwrga4pv0fkhf",
+      "from": "amwrga4pvf5ksv",
+      "to": "amwrga4pvl9fuo",
+      "type": "handoff",
+      "condition": "檢查回答是否有證據"
+    },
+    {
+      "id": "amwrga4pv4ilb8",
+      "from": "amwrga4pvl9fuo",
+      "to": "amwrga4pvf5ksv",
+      "type": "feedback",
+      "condition": "證據不足或引用不符且尚未達上限時，最多修正 2 次",
+      "retries": 2,
+      "payload": "review_feedback, unsupported_claims"
+    },
+    {
+      "id": "amwrga4pvthx8m",
+      "from": "amwrga4pvl9fuo",
+      "to": "amwrga4pvirtz0",
+      "type": "result",
+      "condition": "審查通過，或已達修正上限：回傳檢核結果、最終回答、來源與失敗原因；總控彙整後透過 Flask 回覆 Web，不再重新分派",
+      "payload": "validated_answer, citations, review_status, error_reason"
+    }
+  ]
+}</script>
+<script>
+'use strict';
+const labels={router:'🧭 工作總控',worker:'✨ 專業助手',executor:'🧰 函式工具',judger:'🔍 成果審查'};
+const types={delegate:'委派任務',handoff:'交接下一步',toolcall:'呼叫工具',internal:'工具內部呼叫',conditional:'條件分派',parallel:'並行處理',dependency:'資料依賴',feedback:'退回修改',result:'成果回傳'};
+const colors={feedback:'#d29b53',result:'#528cb3',dependency:'#9e86bc',toolcall:'#4ca28c',internal:'#4ca28c',parallel:'#7e8bb8',conditional:'#8495b8',handoff:'#8495b8',delegate:'#8495b8'};
+let current,layout=new Map(),zoom=1,selectedId='',selectedEdge='',showExtra=true,drag=null,suppressClickUntil=0;
+const el=id=>document.getElementById(id);
+const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+const text=value=>String(value??'').trim();
+const names=()=>new Map(current.agents.map(a=>[a.id,a.name]));
+const multiNames=()=>Array.isArray(current.resources?.multimodal?.services)?current.resources.multimodal.services:[];
+function check(data){
+  if(!data||typeof data!=='object'||!data.project||!Array.isArray(data.agents)||!Array.isArray(data.edges))throw Error('JSON 必須包含 project、agents、edges。');
+  if(data.agents.length>40||data.edges.length>160)throw Error('節點或連線過多，請先簡化設計（最多 40 個節點、160 條線）。');
+  const ids=new Set();
+  for(const a of data.agents){
+    if(!a||typeof a.id!=='string'||!a.id||ids.has(a.id)||!labels[a.role])throw Error('Agent ID 重複／缺失，或角色名稱不支援。');
+    ids.add(a.id);
+    if(typeof a.name!=='string')throw Error('每個 Agent 都必須有名稱。');
+  }
+  for(const e of data.edges)if(!e||!ids.has(e.from)||!ids.has(e.to)||!types[e.type]||e.from===e.to)throw Error('連線的起點、終點或類型無效。');
+  if(data.entry?.target&&!ids.has(data.entry.target))throw Error('Web 入口指向不存在的 Agent。');
+  return data;
+}
+function apiResources(){
+  const names=current.resources?.env_names||[];
+  return Array.isArray(names)?names:[];
+}
+function assignLayout(){
+  const agents=current.agents;
+  const index=new Map(agents.map((a,i)=>[a.id,i]));
+  const levels=new Map(agents.map(a=>[a.id,0]));
+  const directed=current.edges.filter(e=>!['result','feedback','dependency'].includes(e.type));
+  const entry=current.entry?.target||agents.find(a=>a.role==='router')?.id||agents[0]?.id;
+  if(entry)levels.set(entry,0);
+  for(let i=0;i<agents.length;i++){
+    let changed=false;
+    for(const edge of directed){
+      const next=Math.min(8,levels.get(edge.from)+1);
+      if(next>levels.get(edge.to)&&!((levels.get(edge.to)===0)&&(edge.to===entry))){levels.set(edge.to,next);changed=true;}
+    }
+    if(!changed)break;
+  }
+  // Cycles and the explicit return graph are display concerns, not executable ordering.
+  for(const [id,l] of levels)if(l>agents.length-1)levels.set(id,0);
+  const columns=new Map();
+  for(const a of agents){const level=levels.get(a.id);if(!columns.has(level))columns.set(level,[]);columns.get(level).push(a);}
+  const res=new Map();
+  const sorted=[...columns.keys()].sort((a,b)=>a-b);
+  sorted.forEach(level=>{
+    const entries=columns.get(level).sort((a,b)=>index.get(a.id)-index.get(b.id));
+    entries.forEach((a,i)=>res.set(a.id,{x:332+level*345,y:44+i*202}));
+  });
+  const target=res.get(entry)||{x:332,y:44};
+  res.set('web',{x:32,y:target.y});
+  layout=res;
+   const saved=current.ui_layout?.nodes;
+   if(saved&&typeof saved==='object'){
+     for(const [id,pos] of Object.entries(saved)){
+       if(res.has(id)&&Number.isFinite(pos?.x)&&Number.isFinite(pos?.y))res.set(id,{x:Math.max(16,pos.x),y:Math.max(20,pos.y)});
+     }
+   }
+   layout=res;
+   updateBounds();
+}
+function updateBounds(){
+   const positions=[...layout.values()];
+   const width=Math.max(el('graph-shell').clientWidth/zoom,700,...positions.map(p=>p.x+310));
+   const maxBottom=Math.max(410,...positions.map(p=>p.y+136));
+   const returnCount=current.edges.filter(e=>['feedback','result'].includes(e.type)).length;
+   const height=Math.max(600,maxBottom+135+returnCount*42);
+   const inner=el('graph-inner');
+   inner.style.width=width+'px';inner.style.height=height+'px';
+   inner.dataset.w=width;inner.dataset.h=height;
+}
+function rememberLayout(){
+   current.ui_layout={nodes:Object.fromEntries([...layout].map(([id,pos])=>[id,{x:Math.round(pos.x),y:Math.round(pos.y)}]))};
+}
+function renderNodes(){
+  const list=[{id:'web',name:'使用者操作網站',role:'web',purpose:'接收網站輸入並顯示結果'},...current.agents];
+  el('nodes').innerHTML=list.map(a=>{
+    const p=layout.get(a.id);
+    return `<div class="agent-node ${esc(a.role)} ${selectedId===a.id?'active':''}" style="left:${p.x}px;top:${p.y}px" data-id="${esc(a.id)}"><button class="node-inner" type="button" data-select="${esc(a.id)}"><div class="node-type"><span>${a.role==='web'?'🏠 網站入口':labels[a.role]}</span><span>查看 ▸</span></div><div class="node-name">${esc(a.name)}</div><div class="node-caption">${a.role==='executor'?'不用語言模型':a.role==='web'?'Web / Flask':esc(a.provider||'待確認模型')}</div></button><span class="port in"></span><span class="port out"></span><span class="port bottom"></span></div>`;
+  }).join('');
+}
+function pt(id,side,offset=0){
+  const node=el('nodes').querySelector(`[data-id="${CSS.escape(id)}"]`);
+  const port=node?.querySelector('.port.'+side);
+  if(!port)return null;
+  const a=port.getBoundingClientRect(),b=el('graph-inner').getBoundingClientRect();
+  const x=(a.left+a.width/2-b.left)/zoom,y=(a.top+a.height/2-b.top)/zoom;
+  return {x:x+(side==='bottom'?offset:0),y:y+(side==='bottom'?0:offset)};
+}
+function drawLinks(){
+  const svg=el('edges-svg');
+  svg.replaceChildren();
+  const ns='http://www.w3.org/2000/svg';
+  const defs=document.createElementNS(ns,'defs');
+  for(const [kind,color] of [['forward','#8a9bbb'],['feedback','#d29b53'],['result','#528cb3'],['dependency','#9e86bc'],['entry','#d182a7'],['web','#44a6a0']]){
+    const marker=document.createElementNS(ns,'marker');
+    marker.id='marker-'+kind;marker.setAttribute('viewBox','0 0 10 10');marker.setAttribute('refX','9');marker.setAttribute('refY','5');marker.setAttribute('markerWidth','6');marker.setAttribute('markerHeight','6');marker.setAttribute('orient','auto');
+    const tri=document.createElementNS(ns,'path');tri.setAttribute('d','M0 0 L10 5 L0 10 z');tri.setAttribute('fill',color);marker.appendChild(tri);defs.append(marker);
+  }
+  svg.appendChild(defs);
+  const path=(d,type,edge)=>{
+    const p=document.createElementNS(ns,'path');
+    const t=['entry','web'].includes(type)?type:type;
+    const color=type==='entry'?'#d182a7':type==='web'?'#44a6a0':colors[t]||'#8a9bbb';
+    p.setAttribute('d',d);p.setAttribute('fill','none');p.setAttribute('stroke',color);p.setAttribute('stroke-width',edge?.id===selectedEdge?'4.2':'2.9');p.setAttribute('stroke-linecap','round');p.setAttribute('stroke-linejoin','round');
+    if(['feedback','result','dependency','internal','web','parallel'].includes(type))p.setAttribute('stroke-dasharray',type==='feedback'?'6 6':'8 6');
+    p.setAttribute('marker-end','url(#marker-'+(type==='feedback'?'feedback':type==='result'?'result':type==='dependency'?'dependency':type==='entry'?'entry':type==='web'?'web':'forward')+')');
+    if(edge?.id===selectedEdge)p.classList.add('selected');
+    svg.append(p);
+    if(edge){
+      const hit=document.createElementNS(ns,'path');hit.setAttribute('d',d);hit.setAttribute('class','edge-hit');hit.dataset.edge=edge.id;
+      const tt=document.createElementNS(ns,'title');tt.textContent=(types[type]||type)+'，點擊閱讀交接說明';hit.append(tt);svg.append(hit);
+    }
+  };
+  const first=current.entry?.target||current.agents.find(a=>a.role==='router')?.id||current.agents[0]?.id;
+  if(first){const a=pt('web','out'),b=pt(first,'in');if(a&&b)path(`M${a.x} ${a.y} C${a.x+66} ${a.y},${b.x-66} ${b.y},${b.x} ${b.y}`,'entry');}
+   const returnLanes=[];
+   const bottomPortCount=new Map();
+   const nextBottomOffset=id=>{
+     const n=bottomPortCount.get(id)||0;
+     bottomPortCount.set(id,n+1);
+     return (n%2===0?1:-1)*Math.ceil(n/2)*16;
+   };
+   const returnRoute=(fromId,toId)=>{
+    const a=pt(fromId,'bottom'),b=pt(toId,'bottom');
+     if(!a||!b)return '';
+     const ax=a.x+nextBottomOffset(fromId),bx=b.x+nextBottomOffset(toId);
+     const lo=Math.min(ax,bx),hi=Math.max(ax,bx);
+     const intersecting=[...layout.values()].filter(p=>p.x<hi+12&&p.x+258>lo-12);
+     let lane=Math.max(a.y,b.y)+82;
+     for(const p of intersecting)lane=Math.max(lane,p.y+136+75);
+     while(returnLanes.some(t=>t.lo<hi+16&&t.hi>lo-16&&Math.abs(t.lane-lane)<42))lane+=42;
+     returnLanes.push({lo,hi,lane});
+     const sign=bx>=ax?1:-1;
+     const bend=16*sign;
+     return `M${a.x} ${a.y} C${a.x} ${a.y+25},${ax} ${a.y+26},${ax} ${a.y+55} L${ax} ${lane-16} Q${ax} ${lane} ${ax+bend} ${lane} L${bx-bend} ${lane} Q${bx} ${lane} ${bx} ${lane-16} L${bx} ${b.y+55} C${bx} ${b.y+28},${b.x} ${b.y+22},${b.x} ${b.y}`;
+   };
+  const duplicate=new Map();
+  for(const edge of current.edges){
+    if(!showExtra&&['feedback','result','dependency'].includes(edge.type))continue;
+    let d;
+    if(['feedback','result'].includes(edge.type)){
+      d=returnRoute(edge.from,edge.to);
+      if(!d)continue;
+    }else{
+      const a=pt(edge.from,'out'),b=pt(edge.to,'in');if(!a||!b)continue;
+      const key=edge.from+'>'+edge.to;const count=duplicate.get(key)||0;duplicate.set(key,count+1);
+      const lift=(count%2===0?1:-1)*Math.ceil(count/2)*38;
+      const bend=Math.max(90,Math.abs(b.x-a.x)*.33);
+      d=`M${a.x} ${a.y} C${a.x+bend} ${a.y+lift},${b.x-bend} ${b.y+lift},${b.x} ${b.y}`;
+    }
+    path(d,edge.type,edge);
+  }
+  if(first){
+    const a=pt(first,'bottom'),b=pt('web','bottom');
+    if(a&&b)path(returnRoute(first,'web'),'web');
+  }
+}
+function draw(){assignLayout();renderNodes();fitSpace();drawLinks();}
+function fitSpace(){
+  const surface=el('graph-inner');
+  surface.style.transform=`scale(${zoom})`;
+  const parent=el('graph-shell');
+  const width=Number(surface.dataset.w),height=Number(surface.dataset.h);
+  // Transform does not affect the scroll extent, so wrap the scaled geometry.
+  let wrap=el('zoom-wrap');
+  if(!wrap){wrap=document.createElement('div');wrap.id='zoom-wrap';surface.before(wrap);wrap.append(surface);}
+  wrap.style.width=width*zoom+'px';wrap.style.height=height*zoom+'px';
+  el('zoom-label').textContent=Math.round(zoom*100)+'%';
+  parent.scrollLeft=Math.min(parent.scrollLeft,Math.max(0,wrap.offsetWidth-parent.clientWidth));
+}
+function setZoom(value){zoom=Math.max(.35,Math.min(1.45,Math.round(value*20)/20));assignLayout();fitSpace();drawLinks();}
+function selectAgent(id){
+  selectedId=id;selectedEdge='';
+  document.querySelectorAll('.agent-node').forEach(node=>node.classList.toggle('active',node.dataset.id===id));
+  const a=id==='web'?{id:'web',name:'使用者的網站',role:'web',purpose:'接收輸入、顯示任務進度與最終成果，不是 LLM Agent。'}:current.agents.find(item=>item.id===id);
+  if(!a)return;
+  el('selected-title').textContent=(a.role==='web'?'🏠':labels[a.role]?.split(' ')[0]||'')+' '+a.name;
+  const list=[['角色',a.role==='web'?'網站入口':labels[a.role]],['負責工作',a.purpose||'待 AI 補充'],['會收到的資料',a.inputs||'依專案需求決定'],['要交出的成果',a.outputs||'依專案需求決定'],['完成條件',a.acceptance||'需補充可檢查的條件'],['需要工具',a.tools||'無／待確認'],['模型服務',a.role==='executor'||a.role==='web'?'不需模型':a.provider||'待確認'],['模型名稱',a.model||'待 API 確認'],['環境變數名稱',a.env||'未指定']];
+  el('agent-details').innerHTML=list.map(([k,v])=>`<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('');
+}
+function selectEdge(id){selectedEdge=id;selectedId='';document.querySelectorAll('.agent-node').forEach(node=>node.classList.remove('active'));renderRelations();drawLinks();el('relation-list').scrollIntoView({block:'nearest',behavior:'smooth'});}
+function renderRelations(){
+  const m=names();
+  el('relation-list').innerHTML=current.edges.map((e,i)=>`<div tabindex="0" role="button" class="relation-item ${e.id===selectedEdge?'selected':''}" data-relation="${esc(e.id||String(i))}"><span class="relation-badge ${esc(e.type)}">${esc(types[e.type])}</span><div><b>${esc(m.get(e.from)||'?')} → ${esc(m.get(e.to)||'?')}</b><span>${esc(e.condition||'一般情況下交接；具體條件由開發端確認')}</span>${e.payload?`<div class="fineprint">傳遞資料：${esc(e.payload)}</div>`:''}${e.type==='feedback'?`<div class="fineprint">最多重試：${Number.isInteger(e.retries)?e.retries:'待設定'} 次</div>`:''}</div></div>`).join('')||'<p class="info">目前沒有連線，請讓 AI 補上工作順序。</p>';
+}
+function warnings(){
+  const w=[];const agentMap=new Map(current.agents.map(a=>[a.id,a]));
+  if(!current.agents.length)w.push('還沒有 Agent 節點，無法建立可執行流程。');
+  if(!current.entry?.target)w.push('尚未指定網站第一個要交給誰。');
+  if(current.agents.some(a=>a.role==='judger')&&!current.edges.some(e=>e.type==='result'))w.push('有成果審查角色，但沒有明確的「成果回傳」連線。');
+  for(const e of current.edges){
+    const a=agentMap.get(e.from),b=agentMap.get(e.to);
+    if(e.type==='toolcall'&&(a?.role==='executor'||b?.role!=='executor'))w.push('工具呼叫需由 Agent 指向函式工具：'+a.name+' → '+b.name);
+    if(e.type==='internal'&&(a?.role!=='executor'||b?.role!=='executor'))w.push('工具內部呼叫應連接兩個函式工具。');
+    if(e.type==='feedback'&&!Number.isInteger(e.retries))w.push('退回修改的最大重試次數尚未設定。');
+  }
+  return w;
+}
+function description(){
+  const m=names(),extra=current.resources||{};
+  const s=[`專題：${current.project.name||'未命名專題'}`,`目標：${current.project.scenario||'待補充'}`,`網站入口：${m.get(current.entry?.target)||'待設定'}`,`Agent 節點：`];
+  for(const a of current.agents)s.push(`- ${a.name}（${labels[a.role]}）：${a.purpose||'待補充'}`);
+  s.push('工作關係：');
+  for(const e of current.edges)s.push(`- ${m.get(e.from)} → ${m.get(e.to)}（${types[e.type]}）：${e.condition||'條件待補充'}${e.type==='feedback'?`；最多重試 ${e.retries??'待指定'} 次`:''}`);
+  if(extra.retrieval?.enabled)s.push('額外功能：資訊檢索；模式 '+(extra.retrieval.mode||'待決定'));
+  if(extra.retrieval?.web_search?.enabled)s.push('即時網頁資料：ddgs text/news 搜尋列表 → requests（必要時 Playwright）擷取正文 → 來源與時間查核；HTML 不會實際連網。');
+  if(multiNames().length)s.push('額外功能：多模態生成；服務 '+multiNames().map(x=>x.service||x.name||'待確認').join('、'));
+  const w=warnings();for(const q of current.questions||[])if(typeof q==='string'&&q.trim())w.push('待確認：'+q.trim());if(w.length)s.push('檢查提醒：\n- '+w.join('\n- '));
+  return s.join('\n');
+}
+function display(data){
+  current=check(data);
+  if(!current.edges.every(e=>e.id))current.edges.forEach((e,i)=>{if(!e.id)e.id='e'+(i+1);});
+  selectedId=current.entry?.target||current.agents[0]?.id||'web';selectedEdge='';
+  el('project-title').textContent=current.project.name||'未命名專題';
+  el('project-scenario').textContent=current.project.scenario||'尚未描述目標。';
+  el('count-nodes').textContent=current.agents.length;
+  el('count-edges').textContent=current.edges.length;
+  el('count-resources').textContent=apiResources().length+multiNames().length+(current.resources?.retrieval?.enabled?1:0)+(current.resources?.retrieval?.web_search?.enabled?1:0);
+  el('resource-summary').textContent='預計使用的環境變數名稱：'+(apiResources().join('、')||'未指定')+'。'+(current.resources?.retrieval?.enabled?'　包含資訊檢索。':'')+(current.resources?.retrieval?.web_search?.enabled?'　包含 ddgs 即時搜尋＋requests／Playwright 正文擷取。':'')+(multiNames().length?'　包含多模態生成。':'');
+  const warning=warnings();
+  for(const q of current.questions||[])if(typeof q==='string'&&q.trim())warning.push('待確認：'+q.trim());
+  el('alerts').innerHTML=warning.length?`<div class="notice warning">需要 AI 再確認：${warning.map(esc).join('；')}</div>`:'<div class="notice">基本流程結構完整。實際 API、模型、權限與測試結果，仍需在 Vibe Coding 開發階段驗證。</div>';
+  renderRelations();el('summary').value=description();draw();selectAgent(selectedId);
+}
+function save(textValue,filename,mime){
+  const url=URL.createObjectURL(new Blob([textValue],{type:mime}));const a=document.createElement('a');a.href=url;a.download=filename;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);
+}
+function codingPrompt(){
+  const json=JSON.stringify(current,null,2);
+  return `# Vibe Coding｜依已確認 JSON 建立完整 AI Agent Flask 專案\n\n請以 ChatGPT、Gemini 或其他具有程式產生與實際測試能力的 AI 平台完成專案。請以附帶的 JSON 作為唯一可信的專題設計規格。\n\n要求：\n1. 先驗證 JSON 的 project、entry、agents、edges；必須遵守各邊的 from、to、type、condition、payload、retries。畫布座標不代表執行順序。\n2. 根據需求建立真正的專題專屬 Flask 網站，不要建立通用 Agent Builder。能用 Python 函式完成的確定性工作不要額外耗用 LLM。需要協作時依新版 AG2 文件選擇 Agent、Tool 與 workflow，必要時使用 Python orchestrator，禁止虛假的工具呼叫。\n3. API Key 與 Ollama URL 一律透過 os.getenv() 從使用者自行維護的 .env 讀取；JSON 只包含變數名稱。若專題有 OLLAMA_BASE_URL 或編號變數，獲得明確授權時以 /api/tags、/api/show 查實際模型能力。無存取權時標註未驗證，不可推測。\n4. 各 Provider 的模型、額度、功能及免費條件需實際驗證。編號金鑰可指向不同帳戶或專案，但不可用來規避服務商的配額限制；設計可靠的節流、冷卻、重試與失敗回報。\n5. 如有 retrieval，實作 BM25 + 中文 jieba；只有 embedding API 經確認可使用時才加入 dense。Hybrid 使用 RRF 合併排名，保存來源 metadata 與引用。檢索資料不存在時不能假造測試資料。若 resources.retrieval.web_search.enabled=true，必須用 ddgs.text/news 搜尋列表，再以 requests 取得實際網頁正文；需要 JavaScript 渲染時才使用 Playwright，保留來源 URL、標題、時間、證據段落及引用，加入抓取限流、SSRF 與 prompt injection 防護；不得只依搜尋摘要回答。\n6. 如有 multimodal API，僅依實際提供的 Python Client／Notebook 與已確認的端點工作；依 health、submit、poll、download 的介面建立背景任務，處理超時、進度與錯誤，不能假裝生成成功。\n7. 產生 app.py、templates、static、requirements.txt、README.md、.env.example、.gitignore、啟動說明及自動測試。不要產生真正 .env，不要覆寫既有 .env。\n8. 使用 Python 3.11+，UI／說明為臺灣繁體中文，提供清楚的錯誤回報。實際測試 Flask API、Agent 對接、工具執行、資料與回傳流程；不可把模擬測試當 Live 測試。若工具無法直接執行或沒有外部 API 權限，明確列出未驗證事項。\n9. 任何對外寫入、執行未知程式碼或付費服務，先取得使用者明確同意；程式執行必須隔離，禁止向瀏覽器暴露 API Key。\n10. 交付完整 ZIP 和使用說明；若目前 AI 平台沒有操作檔案或終端權限，請提供完整檔案並如實告知測試限制。\n\n## 已確認的專題 JSON\n\n~~~json\n${json}\n~~~\n\n現在開始建立專題，不要重新把需求改寫成另一套流程。`;
+}
+async function loadFile(file){
+  if(!file)return;
+  if(file.size>4*1024*1024){el('status').textContent='檔案超過 4 MB，請先簡化 JSON。';return;}
+  try{const obj=JSON.parse(await file.text());display(obj);el('status').textContent='已成功載入：'+file.name;}catch(error){el('status').textContent='無法匯入：'+error.message;}
+}
+el('dropzone').onclick=()=>el('file').click();
+el('dropzone').onkeydown=event=>{if(['Enter',' '].includes(event.key)){event.preventDefault();el('file').click();}};
+el('file').onchange=event=>{loadFile(event.target.files[0]);event.target.value='';};
+for(const eventName of ['dragenter','dragover'])el('dropzone').addEventListener(eventName,event=>{event.preventDefault();el('dropzone').classList.add('dragging');});
+for(const eventName of ['dragleave','drop'])el('dropzone').addEventListener(eventName,event=>{event.preventDefault();el('dropzone').classList.remove('dragging');if(eventName==='drop')loadFile(event.dataTransfer.files[0]);});
+function example(which){display(JSON.parse(el(which).textContent));el('status').textContent='已載入內建'+(which==='embedded-code'?'程式開發':'資訊檢索')+'範例。';}
+el('example-code').onclick=()=>example('embedded-code');el('example-rag').onclick=()=>example('embedded-rag');
+el('nodes').addEventListener('pointerdown',event=>{
+  const button=event.target.closest('.node-inner');
+  if(!button||event.button!==0||!current)return;
+  const node=button.closest('.agent-node');
+  const id=node?.dataset.id,pos=layout.get(id);
+  if(!pos)return;
+  drag={id,node,button,pointerId:event.pointerId,startX:event.clientX,startY:event.clientY,x:pos.x,y:pos.y,moved:false};
+  button.setPointerCapture(event.pointerId);
+});
+el('nodes').addEventListener('pointermove',event=>{
+  if(!drag||drag.pointerId!==event.pointerId)return;
+  const dx=(event.clientX-drag.startX)/zoom,dy=(event.clientY-drag.startY)/zoom;
+  if(!drag.moved&&Math.hypot(dx,dy)<5)return;
+  drag.moved=true;
+  const x=Math.max(16,drag.x+dx),y=Math.max(20,drag.y+dy);
+  layout.set(drag.id,{x,y});drag.node.style.left=x+'px';drag.node.style.top=y+'px';
+  drag.node.classList.add('dragging');
+  updateBounds();fitSpace();drawLinks();
+});
+function endDrag(event){
+  if(!drag||drag.pointerId!==event.pointerId)return;
+  if(drag.moved){
+    rememberLayout();suppressClickUntil=performance.now()+300;
+    el('status').textContent='已調整節點位置。按「下載目前 JSON」可保存排版。';
+  }
+  drag.node.classList.remove('dragging');drag=null;
+}
+el('nodes').addEventListener('pointerup',endDrag);
+el('nodes').addEventListener('pointercancel',endDrag);
+el('nodes').addEventListener('click',e=>{
+  if(performance.now()<suppressClickUntil){e.preventDefault();return;}
+  const b=e.target.closest('[data-select]');if(b)selectAgent(b.dataset.select);
+});
+el('reset-layout').onclick=()=>{
+  delete current.ui_layout;
+  draw();el('status').textContent='已還原自動排版；可再次拖曳卡片。';
+};
+el('edges-svg').addEventListener('click',e=>{const b=e.target.closest('[data-edge]');if(b)selectEdge(b.dataset.edge);});
+el('relation-list').addEventListener('click',e=>{const b=e.target.closest('[data-relation]');if(b)selectEdge(b.dataset.relation);});
+el('relation-list').addEventListener('keydown',e=>{const b=e.target.closest('[data-relation]');if(b&&['Enter',' '].includes(e.key)){e.preventDefault();selectEdge(b.dataset.relation);}});
+el('show-extra').onclick=()=>{showExtra=!showExtra;el('show-extra').textContent=showExtra?'精簡線條':'顯示所有關係';el('show-extra').setAttribute('aria-pressed',String(showExtra));drawLinks();};
+el('zoom-in').onclick=()=>setZoom(zoom+.1);el('zoom-out').onclick=()=>setZoom(zoom-.1);
+el('zoom-fit').onclick=()=>{const available=el('graph-shell').clientWidth-30;const width=Number(el('graph-inner').dataset.w);setZoom(Math.min(1,available/width));el('graph-shell').scrollTop=0;el('graph-shell').scrollLeft=0;};
+el('download-json').onclick=()=>save(JSON.stringify(current,null,2),'AI_Agent_流程設計.json','application/json');
+el('download-prompt').onclick=()=>save(codingPrompt(),'Vibe_Coding_Flask_開發指令.md','text/markdown');
+el('copy-summary').onclick=async()=>{try{await navigator.clipboard.writeText(description());el('status').textContent='已複製工作流程說明。';}catch{el('summary').select();el('status').textContent='瀏覽器禁止自動複製，請從下方文字框選取複製。';}};
+new ResizeObserver(()=>{if(current)drawLinks();}).observe(el('graph-shell'));
+example('embedded-code');
+</script>
+</body>
+</html>
