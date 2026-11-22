@@ -561,6 +561,17 @@ function warnings(){
   }
   return w;
 }
+function cacheSummary(){
+  const search=current.resources?.retrieval?.web_search;
+  if(!search?.enabled)return '';
+  const cache=search.cache;
+  if(!cache?.enabled)return '網頁 Excel 快取：尚未設定；請在規劃 JSON 中補上 web_search.cache。';
+  const filename=String(cache.path||'data/web_cache.xlsx');
+  const hours=Number(cache.query_ttl_seconds||3600)/3600;
+  const days=Number(cache.page_ttl_seconds||604800)/86400;
+  const newsHours=Number(cache.news_page_ttl_seconds||86400)/3600;
+  return `網頁 Excel 快取：${filename}（搜尋結果 ${hours} 小時、一般網頁 ${days} 天、新聞 ${newsHours} 小時後重新驗證；可強制更新）。此處僅預覽設定，不會讀寫 Excel。`;
+}
 function description(){
   const m=names(),extra=current.resources||{};
   const s=[`專題：${current.project.name||'未命名專題'}`,`目標：${current.project.scenario||'待補充'}`,`網站入口：${m.get(current.entry?.target)||'待設定'}`,`Agent 節點：`];
@@ -569,6 +580,7 @@ function description(){
   for(const e of current.edges)s.push(`- ${m.get(e.from)} → ${m.get(e.to)}（${types[e.type]}）：${e.condition||'條件待補充'}${e.type==='feedback'?`；最多重試 ${e.retries??'待指定'} 次`:''}`);
   if(extra.retrieval?.enabled)s.push('額外功能：資訊檢索；模式 '+(extra.retrieval.mode||'待決定'));
   if(extra.retrieval?.web_search?.enabled)s.push('即時網頁資料：ddgs text/news 搜尋列表 → requests（必要時 Playwright）擷取正文 → 來源與時間查核；HTML 不會實際連網。');
+  if(extra.retrieval?.web_search?.enabled)s.push(cacheSummary());
   if(multiNames().length)s.push('額外功能：多模態生成；服務 '+multiNames().map(x=>x.service||x.name||'待確認').join('、'));
   const w=warnings();for(const q of current.questions||[])if(typeof q==='string'&&q.trim())w.push('待確認：'+q.trim());if(w.length)s.push('檢查提醒：\n- '+w.join('\n- '));
   return s.join('\n');
@@ -582,7 +594,7 @@ function display(data){
   el('count-nodes').textContent=current.agents.length;
   el('count-edges').textContent=current.edges.length;
   el('count-resources').textContent=apiResources().length+multiNames().length+(current.resources?.retrieval?.enabled?1:0)+(current.resources?.retrieval?.web_search?.enabled?1:0);
-  el('resource-summary').textContent='預計使用的環境變數名稱：'+(apiResources().join('、')||'未指定')+'。'+(current.resources?.retrieval?.enabled?'　包含資訊檢索。':'')+(current.resources?.retrieval?.web_search?.enabled?'　包含 ddgs 即時搜尋＋requests／Playwright 正文擷取。':'')+(multiNames().length?'　包含多模態生成。':'');
+  el('resource-summary').textContent='預計使用的環境變數名稱：'+(apiResources().join('、')||'未指定')+'。'+(current.resources?.retrieval?.enabled?'　包含資訊檢索。':'')+(current.resources?.retrieval?.web_search?.enabled?'　包含 ddgs 即時搜尋＋requests／Playwright 正文擷取。':'')+(current.resources?.retrieval?.web_search?.enabled?'　'+cacheSummary():'')+(multiNames().length?'　包含多模態生成。':'');
   const warning=warnings();
   for(const q of current.questions||[])if(typeof q==='string'&&q.trim())warning.push('待確認：'+q.trim());
   el('alerts').innerHTML=warning.length?`<div class="notice warning">需要 AI 再確認：${warning.map(esc).join('；')}</div>`:'<div class="notice">基本流程結構完整。實際 API、模型、權限與測試結果，仍需在 Vibe Coding 開發階段驗證。</div>';
@@ -593,7 +605,7 @@ function save(textValue,filename,mime){
 }
 function codingPrompt(){
   const json=JSON.stringify(current,null,2);
-  return `# Vibe Coding｜依已確認 JSON 建立完整 AI Agent Flask 專案\n\n請以 ChatGPT、Gemini 或其他具有程式產生與實際測試能力的 AI 平台完成專案。請以附帶的 JSON 作為唯一可信的專題設計規格。\n\n要求：\n1. 先驗證 JSON 的 project、entry、agents、edges；必須遵守各邊的 from、to、type、condition、payload、retries。畫布座標不代表執行順序。\n2. 根據需求建立真正的專題專屬 Flask 網站，不要建立通用 Agent Builder。能用 Python 函式完成的確定性工作不要額外耗用 LLM。需要協作時依新版 AG2 文件選擇 Agent、Tool 與 workflow，必要時使用 Python orchestrator，禁止虛假的工具呼叫。\n3. API Key 與 Ollama URL 一律透過 os.getenv() 從使用者自行維護的 .env 讀取；JSON 只包含變數名稱。若專題有 OLLAMA_BASE_URL 或編號變數，獲得明確授權時以 /api/tags、/api/show 查實際模型能力。無存取權時標註未驗證，不可推測。\n4. 各 Provider 的模型、額度、功能及免費條件需實際驗證。編號金鑰可指向不同帳戶或專案，但不可用來規避服務商的配額限制；設計可靠的節流、冷卻、重試與失敗回報。\n5. 如有 retrieval，實作 BM25 + 中文 jieba；只有 embedding API 經確認可使用時才加入 dense。Hybrid 使用 RRF 合併排名，保存來源 metadata 與引用。檢索資料不存在時不能假造測試資料。若 resources.retrieval.web_search.enabled=true，必須用 ddgs.text/news 搜尋列表，再以 requests 取得實際網頁正文；需要 JavaScript 渲染時才使用 Playwright，保留來源 URL、標題、時間、證據段落及引用，加入抓取限流、SSRF 與 prompt injection 防護；不得只依搜尋摘要回答。\n6. 如有 multimodal API，僅依實際提供的 Python Client／Notebook 與已確認的端點工作；依 health、submit、poll、download 的介面建立背景任務，處理超時、進度與錯誤，不能假裝生成成功。\n7. 產生 app.py、templates、static、requirements.txt、README.md、.env.example、.gitignore、啟動說明及自動測試。不要產生真正 .env，不要覆寫既有 .env。\n8. 使用 Python 3.11+，UI／說明為臺灣繁體中文，提供清楚的錯誤回報。實際測試 Flask API、Agent 對接、工具執行、資料與回傳流程；不可把模擬測試當 Live 測試。若工具無法直接執行或沒有外部 API 權限，明確列出未驗證事項。\n9. 任何對外寫入、執行未知程式碼或付費服務，先取得使用者明確同意；程式執行必須隔離，禁止向瀏覽器暴露 API Key。\n10. 交付完整 ZIP 和使用說明；若目前 AI 平台沒有操作檔案或終端權限，請提供完整檔案並如實告知測試限制。\n\n## 已確認的專題 JSON\n\n~~~json\n${json}\n~~~\n\n現在開始建立專題，不要重新把需求改寫成另一套流程。`;
+  return `# Vibe Coding｜依已確認 JSON 建立完整 AI Agent Flask 專案\n\n請以 ChatGPT、Gemini 或其他具有程式產生與實際測試能力的 AI 平台完成專案。請以附帶的 JSON 作為唯一可信的專題設計規格。\n\n要求：\n1. 先驗證 JSON 的 project、entry、agents、edges；必須遵守各邊的 from、to、type、condition、payload、retries。畫布座標不代表執行順序。\n2. 根據需求建立真正的專題專屬 Flask 網站，不要建立通用 Agent Builder。能用 Python 函式完成的確定性工作不要額外耗用 LLM。需要協作時依新版 AG2 文件選擇 Agent、Tool 與 workflow，必要時使用 Python orchestrator，禁止虛假的工具呼叫。\n3. API Key 與 Ollama URL 一律透過 os.getenv() 從使用者自行維護的 .env 讀取；JSON 只包含變數名稱。若專題有 OLLAMA_BASE_URL 或編號變數，獲得明確授權時以 /api/tags、/api/show 查實際模型能力。無存取權時標註未驗證，不可推測。\n4. 各 Provider 的模型、額度、功能及免費條件需實際驗證。編號金鑰可指向不同帳戶或專案，但不可用來規避服務商的配額限制；設計可靠的節流、冷卻、重試與失敗回報。\n5. 如有 retrieval，實作 BM25 + 中文 jieba；只有 embedding API 經確認可使用時才加入 dense。Hybrid 使用 RRF 合併排名，保存來源 metadata 與引用。檢索資料不存在時不能假造測試資料。若 resources.retrieval.web_search.enabled=true，必須用 ddgs.text/news 搜尋列表，再以 requests 取得實際網頁正文；需要 JavaScript 渲染時才使用 Playwright，保留來源 URL、標題、時間、證據段落及引用，加入抓取限流、SSRF 與 prompt injection 防護；不得只依搜尋摘要回答。若有 web_search.cache，需以 openpyxl 維護獨立的 data/web_cache.xlsx（queries／pages／chunks），優先使用未過期的查詢與網頁正文快取；未命中才搜尋或抓取。支援 TTL、強制更新、ETag／Last-Modified 條件請求、URL 去重、過期標示、離線回退、原子寫檔及對應 mock 測試；不得覆寫使用者知識庫 Excel。\n6. 如有 multimodal API，僅依實際提供的 Python Client／Notebook 與已確認的端點工作；依 health、submit、poll、download 的介面建立背景任務，處理超時、進度與錯誤，不能假裝生成成功。\n7. 產生 app.py、templates、static、requirements.txt、README.md、.env.example、.gitignore、啟動說明及自動測試。不要產生真正 .env，不要覆寫既有 .env。\n8. 使用 Python 3.11+，UI／說明為臺灣繁體中文，提供清楚的錯誤回報。實際測試 Flask API、Agent 對接、工具執行、資料與回傳流程；不可把模擬測試當 Live 測試。若工具無法直接執行或沒有外部 API 權限，明確列出未驗證事項。\n9. 任何對外寫入、執行未知程式碼或付費服務，先取得使用者明確同意；程式執行必須隔離，禁止向瀏覽器暴露 API Key。\n10. 交付完整 ZIP 和使用說明；若目前 AI 平台沒有操作檔案或終端權限，請提供完整檔案並如實告知測試限制。\n\n## 已確認的專題 JSON\n\n~~~json\n${json}\n~~~\n\n現在開始建立專題，不要重新把需求改寫成另一套流程。`;
 }
 async function loadFile(file){
   if(!file)return;
