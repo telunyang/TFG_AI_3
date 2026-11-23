@@ -6,53 +6,34 @@ import uuid
 import time
 from pathlib import Path
 import requests
-from contextlib import ExitStack
 API_URL = 'https://REPLACE_WITH_YOUR_NGROK_DOMAIN'
-EXPECTED_SERVICE = '06_Qwen_Image_2.1_圖片生成_Kaggle'
+EXPECTED_SERVICE = '06_Z-Image-Turbo_圖片生成_Ubuntu'
 
 '''
-Choose: text (0 images), edit (1 image), or multi (2–10 images).
-選擇 text（0 張）、edit（1 張）或 multi（2～10 張參考圖）。
+Write the requested image description.
+編輯要生成的圖片描述。
 '''
-TASK = 'text'
 PROMPT = '''
-A cozy bookstore in Taipei on a rainy evening, realistic photography.
+A cozy Taiwanese street at dusk, photorealistic.
 '''.strip()
+WIDTH, HEIGHT = 640, 960
 
 '''
-Define an optional negative prompt.
-設定選用的負面提示詞。
+Choose sampling steps and classifier-free guidance.
+設定取樣步數與 CFG 引導值。
 '''
-NEGATIVE_PROMPT = '''
-
-'''.strip()
-WIDTH, HEIGHT = 640, 640
-
-'''
-Configure Qwen sampling; turbo is valid only with 6 steps and CFG=1.
-設定 Qwen 取樣參數；turbo 僅適用 6 steps、CFG=1。
-'''
-STEPS, CFG, SAMPLER = 6, 1.0, 'auto'
-REFERENCE_SIZE, SEED = 512, 42
+STEPS, CFG = 8, 1.0
+SEED = 42
+PARAMS = dict(task='text', prompt=PROMPT, width=WIDTH, height=HEIGHT,
+              steps=STEPS, cfg=CFG, seed=SEED)
 
 '''
-Set local images in upload order; keep [] for text generation.
-依順序填入本機參考圖片；文生圖保持 []。
+Keep downloaded files in a separate local directory.
+將下載結果存至獨立資料夾。
 '''
-IMAGE_PATHS = []
-PARAMS = dict(task=TASK, prompt=PROMPT, negative_prompt=NEGATIVE_PROMPT,
-              width=WIDTH, height=HEIGHT, steps=STEPS, cfg=CFG,
-              sampler=SAMPLER, reference_size=REFERENCE_SIZE, seed=SEED)
-
 DOWNLOAD_DIR = Path('generated_results')
-
-'''
-Query the remote job once every five seconds.
-每五秒查詢一次工作狀態。
-'''
 POLL_SECONDS = 5
 HEADERS = {'ngrok-skip-browser-warning': 'true'}
-IMAGE_COUNTS = {'text': (0, 0), 'edit': (1, 1), 'multi': (2, 10)}
 
 '''
 Reuse a stable job ID for transient failures; give busy queues time to drain.
@@ -69,8 +50,8 @@ Reattempt interrupted downloads at most three times.
 MAX_DOWNLOAD_RETRIES = 3
 
 '''
-Submit exactly one logical job; retries reuse its ID and cannot duplicate inference.
-每次只提交一筆邏輯工作；重試使用相同 ID，避免重複推論。
+Submit a text-only request, preserving its identity across network retries.
+提交純文字請求，網路重試期間沿用相同工作 ID。
 '''
 '''
 Measure each client stage without changing its return value or exception behavior.
@@ -85,14 +66,11 @@ def measure_time(label, function, *args, **kwargs):
         elapsed = f'{int(minutes)} 分 {seconds:05.2f} 秒' if minutes else f'{seconds:.2f} 秒'
         print(f'⏱ {label}耗時：{elapsed}')
 
-def submit_job(session, params=PARAMS, images=IMAGE_PATHS, api_url=API_URL):
+def submit_job(session, params=PARAMS, api_url=API_URL):
     '''
-    Validate this notebook's image requirements before opening files.
-    先檢查此 Notebook 的圖片張數，再開啟檔案。
+    Keep the same ID even if ngrok drops the response after accepting the task.
+    即使 ngrok 中斷已接受請求的回應，也不會重複生成。
     '''
-    expected = IMAGE_COUNTS.get(params['task'])
-    if expected is None or not expected[0] <= len(images) <= expected[1]:
-        raise ValueError(f'模式 {params["task"]} 的參考圖數量不正確；允許範圍：{IMAGE_COUNTS}')
     request_id = uuid.uuid4().hex
     deadline = time.monotonic() + MAX_SUBMIT_WAIT
     network_failures = 0
@@ -100,17 +78,8 @@ def submit_job(session, params=PARAMS, images=IMAGE_PATHS, api_url=API_URL):
     while True:
         response = None
         try:
-            with ExitStack() as stack:
-                files = []
-                for filename in images:
-                    path = Path(filename)
-                    stream = stack.enter_context(path.open('rb'))
-                    files.append(('images', (path.name, stream)))
-                url = api_url.rstrip('/') + '/generate'
-                if files:
-                    response = session.post(url, data=params, files=files, headers=headers, timeout=(30, 180))
-                else:
-                    response = session.post(url, json=params, headers=headers, timeout=(30, 180))
+            response = session.post(api_url.rstrip('/') + '/generate', json=params,
+                                    headers=headers, timeout=(30, 180))
             if response.status_code not in (429, 502, 503, 504):
                 if not response.ok:
                     raise RuntimeError(f'提交失敗 HTTP {response.status_code}: {response.text[:800]}')
@@ -124,7 +93,7 @@ def submit_job(session, params=PARAMS, images=IMAGE_PATHS, api_url=API_URL):
             reason = str(error)[:200]
         remaining = deadline - time.monotonic()
         if remaining <= 0:
-            raise TimeoutError(f'提交超過 {MAX_SUBMIT_WAIT} 秒；請稍後檢查服務。Request ID: {request_id}；最後錯誤：{reason}')
+            raise TimeoutError(f'提交超過 {MAX_SUBMIT_WAIT} 秒。Request ID: {request_id}；最後錯誤：{reason}')
         retry_after = response.headers.get('Retry-After', '10') if response is not None else '10'
         try:
             delay = min(30, max(2, float(retry_after)), remaining)
@@ -212,7 +181,7 @@ def download_file(session, job_id, endpoint, filename, api_url=API_URL):
 
 '''
 Check CUDA readiness before submitting the model-specific generation request.
-提交此模型專屬的生成請求前，先確認 Kaggle 的 CUDA 後端已就緒。
+提交此模型專屬的生成請求前，先確認 遠端 GPU 後端已就緒。
 '''
 def check_gpu_backend(session):
     response = session.get(API_URL.rstrip('/') + '/health?task=' + str(PARAMS['task']), headers=HEADERS, timeout=(10, 20))
@@ -237,7 +206,7 @@ def main():
         raise ValueError('請先填入 Notebook 顯示的 ngrok API_URL。')
     with requests.Session() as session:
         measure_time('GPU／服務檢查', check_gpu_backend, session)
-        job_id = measure_time('提交生成工作', submit_job, session, PARAMS, IMAGE_PATHS)
+        job_id = measure_time('提交生成工作', submit_job, session, PARAMS)
 
         print('工作編號：', job_id)
         job = measure_time('佇列等待與生成', wait_for_job, session, job_id)

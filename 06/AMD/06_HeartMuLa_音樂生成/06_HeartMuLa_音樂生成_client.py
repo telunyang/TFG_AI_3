@@ -7,46 +7,46 @@ import time
 from pathlib import Path
 import requests
 API_URL = 'https://REPLACE_WITH_YOUR_NGROK_DOMAIN'
-EXPECTED_SERVICE = '06_Z-Image-Turbo_圖片生成_Kaggle'
+EXPECTED_SERVICE = '06_HeartMuLa_音樂生成_Ubuntu'
 
 '''
-Write the requested image description.
-編輯要生成的圖片描述。
+Write lyrics with section markers.
+使用段落標記撰寫歌詞。
 '''
-PROMPT = '''
-A cozy Taiwanese street at dusk, photorealistic.
+LYRICS = '''
+[Verse]
+微風輕輕吹過窗前
+[Chorus]
+一起迎接嶄新的一天
 '''.strip()
-WIDTH, HEIGHT = 640, 960
+TAGS = '''
+soft,pop,acoustic
+'''.strip()
+DURATION, SEED = 20, 42
 
 '''
-Choose sampling steps and classifier-free guidance.
-設定取樣步數與 CFG 引導值。
+Send only lyrics, style tags, duration, and seed; no image upload.
+只傳送歌詞、曲風標籤、秒數與種子，不上傳圖片。
 '''
-STEPS, CFG = 8, 1.0
-SEED = 42
-PARAMS = dict(task='text', prompt=PROMPT, width=WIDTH, height=HEIGHT,
-              steps=STEPS, cfg=CFG, seed=SEED)
+PARAMS = dict(task='music', lyrics=LYRICS, tags=TAGS,
+              duration=DURATION, seed=SEED)
 
-'''
-Keep downloaded files in a separate local directory.
-將下載結果存至獨立資料夾。
-'''
 DOWNLOAD_DIR = Path('generated_results')
 POLL_SECONDS = 5
-HEADERS = {'ngrok-skip-browser-warning': 'true'}
 
 '''
-Reuse a stable job ID for transient failures; give busy queues time to drain.
-暫時性失敗沿用同一筆工作 ID，讓滿載佇列有時間消化。
+Skip the ngrok browser warning for API requests and downloads.
+避免 ngrok 的瀏覽器提醒干擾 API 提交、查詢及下載。
 '''
+HEADERS = {'ngrok-skip-browser-warning': 'true'}
 MAX_SUBMIT_WAIT = 2 * 3600
 MAX_RESULT_WAIT = 24 * 3600
-MAX_OFFLINE_WAIT = 10 * 60
 
 '''
-Reattempt interrupted downloads at most three times.
-下載暫時中斷時，最多重試三次。
+Accept a short ngrok outage without losing the original job.
+容許 ngrok 短暫斷線，保留原工作編號。
 '''
+MAX_OFFLINE_WAIT = 10 * 60
 MAX_DOWNLOAD_RETRIES = 3
 
 '''
@@ -181,7 +181,7 @@ def download_file(session, job_id, endpoint, filename, api_url=API_URL):
 
 '''
 Check CUDA readiness before submitting the model-specific generation request.
-提交此模型專屬的生成請求前，先確認 Kaggle 的 CUDA 後端已就緒。
+提交此模型專屬的生成請求前，先確認 遠端 GPU 後端已就緒。
 '''
 def check_gpu_backend(session):
     response = session.get(API_URL.rstrip('/') + '/health?task=' + str(PARAMS['task']), headers=HEADERS, timeout=(10, 20))

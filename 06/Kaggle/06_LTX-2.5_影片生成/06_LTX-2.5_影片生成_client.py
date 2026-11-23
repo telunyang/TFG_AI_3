@@ -2,81 +2,62 @@
 Import the libraries needed for this section.
 匯入本段程式所需的函式庫。
 '''
-import re
 import uuid
 import time
 from pathlib import Path
 import requests
 from contextlib import ExitStack
 API_URL = 'https://REPLACE_WITH_YOUR_NGROK_DOMAIN'
-EXPECTED_SERVICE = '06_HyperFlow_H3_Flash_影片生成_Kaggle'
+EXPECTED_SERVICE = '06_LTX-2.5_影片生成_Kaggle'
 
 '''
-Select t2v, i2v, l2v, flf2v, or r2v; reference media depend on the task.
-選擇 t2v、i2v、l2v、flf2v 或 r2v；R2V 可使用圖片、影片及音訊參考。
+Choose: t2v (0 images), i2v (1), or flf2v (first and last images).
+選擇 t2v（0 張）、i2v（1 張）、flf2v（首尾各 1 張）。
 '''
 TASK = 't2v'
 PROMPT = '''
-A Taiwanese street market at night, smooth camera movement.
+A cinematic view of Taipei at sunset, slow camera pan.
 '''.strip()
 
 '''
-Set the video dimensions and duration.
-設定影片尺寸與長度。
+Configure video size and duration.
+設定影片解析度與秒數。
 '''
-WIDTH, HEIGHT, SECONDS = 384, 224, 5
-STEPS = 6
-REF_IMAGE_SIZE = 'match'
+WIDTH, HEIGHT, SECONDS = 288, 512, 10
+'''
+Use the same FPS setting as the Notebook's LTX workflow.
+使用與 Notebook LTX 工作流程相同的 FPS 設定。
+'''
+FPS = 24
+IMAGE_STRENGTH, SEED = 0.7, 42
 
 '''
-Fix the seed or use -1 for random.
-固定種子，或用 -1 代表隨機。
+Provide ordered local image paths only for image-conditioned tasks.
+只有使用圖片條件模式時，才填入依順序排列的本機圖片路徑。
 '''
-SEED = 42
 IMAGE_PATHS = []
-
-'''
-Optional reference videos for R2V, in prompt order (up to three).
-R2V 可選的參考影片路徑，依 Prompt 編號排序（最多三段）。
-'''
-VIDEO_PATHS = []
-AUDIO_PATHS = []
-VIDEO_AUDIO = False  # True, False
-
-'''
-Use the Notebook's quantization, or choose a loaded alternative.
-留空沿用 Notebook 量化，或指定已經載入的量化格式。
-'''
-QUANT = ''
 PARAMS = dict(task=TASK, prompt=PROMPT, width=WIDTH, height=HEIGHT,
-              seconds=SECONDS, steps=STEPS, ref_image_size=REF_IMAGE_SIZE, seed=SEED)
+              seconds=SECONDS, fps=FPS, image_strength=IMAGE_STRENGTH, seed=SEED)
 
-if QUANT:
-    PARAMS['quant'] = QUANT
-
-PARAMS['video_audio'] = str(VIDEO_AUDIO).lower()
-
-'''
-Keep downloaded files in a separate local directory.
-將下載結果存至獨立資料夾。
-'''
 DOWNLOAD_DIR = Path('generated_results')
+
+'''
+Query the remote job once every five seconds.
+每五秒查詢一次工作狀態。
+'''
 POLL_SECONDS = 5
 HEADERS = {'ngrok-skip-browser-warning': 'true'}
+IMAGE_COUNTS = {'t2v': (0, 0), 'i2v': (1, 1), 'flf2v': (2, 2)}
 
 '''
-Validate the reference-image count for this specific Notebook.
-依此 Notebook 支援的模式確認參考圖數量。
+Reuse a stable job ID for transient failures; give busy queues time to drain.
+暫時性失敗沿用同一筆工作 ID，讓滿載佇列有時間消化。
 '''
-IMAGE_COUNTS = {'t2v': (0, 0), 'i2v': (1, 1), 'l2v': (1, 1), 'flf2v': (2, 2), 'r2v': (0, 9)}
-MAX_SUBMIT_WAIT = 2 * 3600
-MAX_RESULT_WAIT = 24 * 3600
 
 '''
-Accept a short ngrok outage without losing the original job.
-容許 ngrok 短暫斷線，保留原工作編號。
+Reattempt interrupted downloads at most three times.
+下載暫時中斷時，最多重試三次。
 '''
-MAX_OFFLINE_WAIT = 10 * 60
 MAX_DOWNLOAD_RETRIES = 3
 
 '''
@@ -102,26 +83,9 @@ def submit_job(session, params=PARAMS, images=IMAGE_PATHS, api_url=API_URL):
     先檢查此 Notebook 的圖片張數，再開啟檔案。
     '''
     expected = IMAGE_COUNTS.get(params['task'])
-    if expected is None or not expected[0] <= len(images) <= expected[1] or (params['task'] == 'r2v' and not (images or VIDEO_PATHS)):
-        raise ValueError('圖片張數不符；R2V 需要至少一張圖片或一段影片，音訊只能作為附加參考。')
-    if VIDEO_PATHS or AUDIO_PATHS:
-        if params['task'] != 'r2v' or len(VIDEO_PATHS) > 3 or len(AUDIO_PATHS) > 3:
-            raise ValueError('參考影片／音訊僅支援 R2V，且各最多 3 段。')
-    if params['task'] == 'r2v' and len(images) + len(VIDEO_PATHS) + len(AUDIO_PATHS) > 12:
-        raise ValueError('R2V 最多接受 12 個參考素材檔案。')
-    if params['task'] == 'r2v':
-        numbers = {int(n) for n in re.findall(r'<Picture\s+(\d+)>', params.get('prompt', ''), re.I)}
-        if any(n < 1 or n > len(images) for n in numbers):
-            raise ValueError('HyperFlow R2V Prompt 必須使用有效的 <Picture 1> 等圖片標記。')
-        for label, count in (('Video', len(VIDEO_PATHS)),
-                             ('Audio', len(AUDIO_PATHS) + (len(VIDEO_PATHS) if VIDEO_AUDIO else 0))):
-            numbers = [int(n) for n in re.findall(r'<%s\s+(\d+)>' % label, params.get('prompt', ''), re.I)]
-            if any(n < 1 or n > count for n in numbers):
-                raise ValueError(f'R2V Prompt 使用了不存在的 <{label} N> 參考素材。')
-    if params.get('steps') not in (4, 6, 8):
-        raise ValueError('HyperFlow 的 STEPS 只能是 4、6 或 8。')
+    if expected is None or not expected[0] <= len(images) <= expected[1]:
+        raise ValueError(f'模式 {params["task"]} 的參考圖數量不正確；允許範圍：{IMAGE_COUNTS}')
     request_id = uuid.uuid4().hex
-    deadline = time.monotonic() + MAX_SUBMIT_WAIT
     network_failures = 0
     headers = dict(HEADERS, **{'X-Request-ID': request_id})
     while True:
@@ -133,11 +97,6 @@ def submit_job(session, params=PARAMS, images=IMAGE_PATHS, api_url=API_URL):
                     path = Path(filename)
                     stream = stack.enter_context(path.open('rb'))
                     files.append(('images', (path.name, stream)))
-                for field, paths in (('videos', VIDEO_PATHS), ('audios', AUDIO_PATHS)):
-                    for filename in paths:
-                        path = Path(filename)
-                        stream = stack.enter_context(path.open('rb'))
-                        files.append((field, (path.name, stream)))
                 url = api_url.rstrip('/') + '/generate'
                 if files:
                     response = session.post(url, data=params, files=files, headers=headers, timeout=(30, 180))
@@ -154,14 +113,11 @@ def submit_job(session, params=PARAMS, images=IMAGE_PATHS, api_url=API_URL):
             if network_failures >= 12:
                 raise ConnectionError(f'連續 12 次連線失敗；請檢查 API_URL、ngrok 連線與工作 {request_id}。') from error
             reason = str(error)[:200]
-        remaining = deadline - time.monotonic()
-        if remaining <= 0:
-            raise TimeoutError(f'提交超過 {MAX_SUBMIT_WAIT} 秒；請稍後檢查服務。Request ID: {request_id}；最後錯誤：{reason}')
         retry_after = response.headers.get('Retry-After', '10') if response is not None else '10'
         try:
-            delay = min(30, max(2, float(retry_after)), remaining)
+            delay = min(30, max(2, float(retry_after)))
         except ValueError:
-            delay = min(10, remaining)
+            delay = 10
         print(f'提交暫未成功（{reason}），{delay:.0f} 秒後重試…')
         time.sleep(delay)
 
@@ -180,19 +136,12 @@ Poll patiently through temporary disconnections and long GPU queues.
 等待長時間 GPU 排隊，並容忍短暫斷線。
 '''
 def wait_for_job(session, job_id, api_url=API_URL):
-    deadline = time.monotonic() + MAX_RESULT_WAIT
-    offline_since = None
     previous = None
     last_notice = time.monotonic()
-    while time.monotonic() < deadline:
+    while True:
         try:
             job = get_job(session, job_id, api_url)
-            offline_since = None
-        except (requests.ConnectionError, requests.Timeout) as error:
-            if offline_since is None:
-                offline_since = time.monotonic()
-            if time.monotonic() - offline_since > MAX_OFFLINE_WAIT:
-                raise ConnectionError(f'持續無法連線至 API；工作編號 {job_id} 可能仍在遠端執行。') from error
+        except (requests.ConnectionError, requests.Timeout):
             print('連線暫時中斷，保留原工作編號並稍後查詢…')
             time.sleep(POLL_SECONDS)
             continue
@@ -209,7 +158,6 @@ def wait_for_job(session, job_id, api_url=API_URL):
         if job['status'] not in ('queued', 'running'):
             raise RuntimeError(job.get('error', f'未知狀態：{job["status"]}'))
         time.sleep(POLL_SECONDS)
-    raise TimeoutError(f'等待已超過 {MAX_RESULT_WAIT} 秒。工作 {job_id} 可能仍在執行，請稍後以該編號查詢。')
 
 '''
 Stream files with atomic local replacement; retry temporary download failures.
@@ -244,7 +192,7 @@ def download_file(session, job_id, endpoint, filename, api_url=API_URL):
 
 '''
 Check CUDA readiness before submitting the model-specific generation request.
-提交此模型專屬的生成請求前，先確認 Kaggle 的 CUDA 後端已就緒。
+提交此模型專屬的生成請求前，先確認遠端 NVIDIA CUDA 後端已就緒。
 '''
 def check_gpu_backend(session):
     response = session.get(API_URL.rstrip('/') + '/health?task=' + str(PARAMS['task']), headers=HEADERS, timeout=(10, 20))
@@ -257,8 +205,10 @@ def check_gpu_backend(session):
     if status.get('gpu_ready') is not True:
         raise RuntimeError('遠端 GPU 尚未就緒：' + status.get('gpu_message', '請更新並重新執行 Notebook 的 API Cell。'))
     if status.get('backend_ready') is not True:
-        raise RuntimeError('遠端模型或模式尚未就緒：' + status.get('gpu_message', '請先執行對應的 Notebook 設定 Cells。'))
+        raise RuntimeError('遠端資源尚未就緒：' + status.get('gpu_message', '請檢查 Kaggle 主機 RAM。'))
     print('已偵測 CUDA：', '、'.join(status.get('gpu_devices', [])))
+    if status.get('ram_available_gib') is not None:
+        print(f'遠端可用 RAM：約 {status["ram_available_gib"]:.1f} GiB')
 
 def main():
     '''
@@ -269,12 +219,8 @@ def main():
         raise ValueError('請先填入 Notebook 顯示的 ngrok API_URL。')
     with requests.Session() as session:
         measure_time('GPU／服務檢查', check_gpu_backend, session)
-
-        '''
-        Submit exactly one generation job to the FIFO queue.
-        向 FIFO 佇列提交一筆生成工作。
-        '''
         job_id = measure_time('提交生成工作', submit_job, session, PARAMS, IMAGE_PATHS)
+
         print('工作編號：', job_id)
         job = measure_time('佇列等待與生成', wait_for_job, session, job_id)
         result = measure_time('下載成果', download_file, session, job_id, 'file', job['filename'])
