@@ -19,7 +19,7 @@ header{padding:22px max(2vw,16px);background:linear-gradient(110deg,#f3ecff,#eff
 <section class="card"><div class="heading"><div><h2 id="project-title">專題名稱</h2><p id="project-scenario"></p></div><span class="tag" id="project-status">待確認設計</span></div><div class="grid3"><div class="metric"><strong id="count-nodes">0</strong><span>Agent／工具數量</span></div><div class="metric"><strong id="count-edges">0</strong><span>工作關係</span></div><div class="metric"><strong id="count-resources">0</strong><span>可選外部資源</span></div></div><p id="resource-summary" class="info"></p><div id="alerts"></div></section>
 <section class="card"><div class="heading"><div><h2>② 檢視 Agent 如何協作</h2><p>點選角色卡片看說明；點選線條看交接條件。橘色虛線代表退回修改，藍色虛線代表成果回傳。</p></div><div class="actions"><button id="show-extra" class="btn" type="button" aria-pressed="true">精簡線條</button><button id="zoom-out" class="btn" aria-label="縮小地圖">－</button><span id="zoom-label" class="tag">100%</span><button id="zoom-in" class="btn" aria-label="放大地圖">＋</button><button id="zoom-fit" class="btn">顯示全圖</button><button id="reset-layout" class="btn" type="button">還原自動排版</button></div></div><div id="graph-shell" class="graph-shell"><div id="graph-inner" class="graph-inner"><svg id="edges-svg" aria-label="AI Agent 工作關係圖"></svg><div id="nodes"></div></div></div><p class="fineprint">拖曳卡片可調整位置、釐清連線；連線會同步更新。按「下載目前 JSON」可保存排版，下次匯入會還原。實線＝安排工作／呼叫工具；虛線＝結果回傳、退回修改或資料依賴。卡片位置不影響真正的執行順序。</p></section>
 <section class="card"><div class="heading"><div><h2>③ 閱讀角色與工作關係</h2><p>查看各角色職責、輸入輸出，以及最終結果的回傳位置。</p></div></div><div class="notice" style="margin-bottom:14px">想修改流程？將最新的 <strong>AI_Agent_流程設計.json</strong> 與 <strong>02_AI流程規劃與修改.md</strong> 一起交給 AI，再直接說想修改什麼。新版 JSON 重新匯入此頁即可，不必重填 Word。</div><div class="node-detail"><div class="detail"><h3 class="detail-title" id="selected-title">選擇角色</h3><dl id="agent-details"></dl></div><div class="detail"><h3 class="detail-title">這些線條代表什麼？</h3><div id="relation-list"></div></div></div></section>
-<section class="card"><div class="heading"><div><h2>④ 確認後交給 ChatGPT／Gemini 進行 Vibe Coding</h2><p>確認流程後，交給 AI 最終 JSON + 04_Flask專案開發.md；也可以直接下載本頁產生的開發指令（已內含 JSON）。</p></div></div><div class="actions"><button class="btn primary" id="download-prompt">下載含 JSON 的開發指令（選用）</button><button class="btn" id="download-json">下載目前 JSON</button><button class="btn" id="copy-summary">複製工作流程說明</button></div><p class="fineprint">本頁只負責設計檢查，不會執行模型或生成 Flask 專案。真正的 .env 及金鑰留在本機，不要上傳給 AI 平台。</p><details><summary>需要給 AI 的摘要與檢查事項</summary><textarea id="summary" class="copybox" readonly></textarea></details></section>
+<section class="card"><div class="heading"><div><h2>④ 確認後交給 ChatGPT／Gemini 進行 Vibe Coding</h2><p>確認流程後，交給 AI 最終 JSON + 04_Flask專案開發.md；也可以直接下載本頁產生的開發指令（已內含 JSON）。</p></div></div><div class="actions"><button class="btn primary" id="download-prompt">下載含 JSON 的開發指令（選用）</button><button class="btn" id="download-json">下載目前 JSON</button><button class="btn" id="copy-summary">複製工作流程說明</button></div><p class="fineprint">本頁只負責設計檢查，不會執行模型或生成 Flask 專案。真正的 .env 與金鑰留在本機；JSON 內的 URL 會隨下載／分享暴露，請確認服務有適當存取保護。</p><details><summary>需要給 AI 的摘要與檢查事項</summary><textarea id="summary" class="copybox" readonly></textarea></details></section>
 <div class="footer">AI Agent 工作流程預覽器 · JSON 驅動 · 本機預覽、不傳送資料、無須了解 AG2 實作細節</div>
 </main>
 <script type="application/json" id="embedded-code">{
@@ -382,6 +382,18 @@ function check(data){
   if(data.entry?.target&&!ids.has(data.entry.target))throw Error('Web 入口指向不存在的 Agent。');
   return data;
 }
+function serviceUrls(){
+  const urls=current.resources?.llm?.ollama_endpoints;
+  return Array.isArray(urls)?urls.filter(x=>x&&typeof x.base_url==='string'&&x.base_url.trim()):[];
+}
+function multimodalUrls(){
+  return multiNames().filter(x=>x&&typeof x.base_url==='string'&&x.base_url.trim());
+}
+function serviceSummary(){
+  const ollama=serviceUrls().map(x=>(x.id||x.name||'Ollama')+'：'+x.base_url);
+  const multimodal=multimodalUrls().map(x=>(x.name||x.id||'多模態')+'：'+x.base_url);
+  return [ollama.length?'Ollama 服務：'+ollama.join('；')+'。':'',multimodal.length?'多模態服務：'+multimodal.join('；')+'。':''].filter(Boolean).join('　');
+}
 function apiResources(){
   const names=current.resources?.env_names||[];
   return Array.isArray(names)?names:[];
@@ -582,6 +594,7 @@ function description(){
   if(extra.retrieval?.web_search?.enabled)s.push('即時網頁資料：ddgs text/news 搜尋列表 → requests（必要時 Playwright）擷取正文 → 來源與時間查核；HTML 不會實際連網。');
   if(extra.retrieval?.web_search?.enabled)s.push(cacheSummary());
   if(multiNames().length)s.push('額外功能：多模態生成；服務 '+multiNames().map(x=>x.service||x.name||'待確認').join('、'));
+  if(serviceSummary())s.push('使用者提供的服務 URL（尚需實機驗證）：'+serviceSummary());
   const w=warnings();for(const q of current.questions||[])if(typeof q==='string'&&q.trim())w.push('待確認：'+q.trim());if(w.length)s.push('檢查提醒：\n- '+w.join('\n- '));
   return s.join('\n');
 }
@@ -593,8 +606,8 @@ function display(data){
   el('project-scenario').textContent=current.project.scenario||'尚未描述目標。';
   el('count-nodes').textContent=current.agents.length;
   el('count-edges').textContent=current.edges.length;
-  el('count-resources').textContent=apiResources().length+multiNames().length+(current.resources?.retrieval?.enabled?1:0)+(current.resources?.retrieval?.web_search?.enabled?1:0);
-  el('resource-summary').textContent='預計使用的環境變數名稱：'+(apiResources().join('、')||'未指定')+'。'+(current.resources?.retrieval?.enabled?'　包含資訊檢索。':'')+(current.resources?.retrieval?.web_search?.enabled?'　包含 ddgs 即時搜尋＋requests／Playwright 正文擷取。':'')+(current.resources?.retrieval?.web_search?.enabled?'　'+cacheSummary():'')+(multiNames().length?'　包含多模態生成。':'');
+  el('count-resources').textContent=apiResources().length+multiNames().length+serviceUrls().length+(current.resources?.retrieval?.enabled?1:0)+(current.resources?.retrieval?.web_search?.enabled?1:0);
+  el('resource-summary').textContent='預計使用的環境變數名稱：'+(apiResources().join('、')||'未指定')+'。'+(current.resources?.retrieval?.enabled?'　包含資訊檢索。':'')+(current.resources?.retrieval?.web_search?.enabled?'　包含 ddgs 即時搜尋＋requests／Playwright 正文擷取。':'')+(current.resources?.retrieval?.web_search?.enabled?'　'+cacheSummary():'')+(multiNames().length?'　包含多模態生成。':'')+(serviceSummary()?'　'+serviceSummary():'');
   const warning=warnings();
   for(const q of current.questions||[])if(typeof q==='string'&&q.trim())warning.push('待確認：'+q.trim());
   el('alerts').innerHTML=warning.length?`<div class="notice warning">需要 AI 再確認：${warning.map(esc).join('；')}</div>`:'<div class="notice">基本流程結構完整。實際 API、模型、權限與測試結果，仍需在 Vibe Coding 開發階段驗證。</div>';
@@ -605,7 +618,7 @@ function save(textValue,filename,mime){
 }
 function codingPrompt(){
   const json=JSON.stringify(current,null,2);
-  return `# Vibe Coding｜依已確認 JSON 建立完整 AI Agent Flask 專案\n\n請以 ChatGPT、Gemini 或其他具有程式產生與實際測試能力的 AI 平台完成專案。請以附帶的 JSON 作為唯一可信的專題設計規格。\n\n要求：\n1. 先驗證 JSON 的 project、entry、agents、edges；必須遵守各邊的 from、to、type、condition、payload、retries。畫布座標不代表執行順序。\n2. 根據需求建立真正的專題專屬 Flask 網站，不要建立通用 Agent Builder。能用 Python 函式完成的確定性工作不要額外耗用 LLM。需要協作時依新版 AG2 文件選擇 Agent、Tool 與 workflow，必要時使用 Python orchestrator，禁止虛假的工具呼叫。\n3. API Key 與 Ollama URL 一律透過 os.getenv() 從使用者自行維護的 .env 讀取；JSON 只包含變數名稱。若專題有 OLLAMA_BASE_URL 或編號變數，獲得明確授權時以 /api/tags、/api/show 查實際模型能力。無存取權時標註未驗證，不可推測。\n4. 各 Provider 的模型、額度、功能及免費條件需實際驗證。編號金鑰可指向不同帳戶或專案，但不可用來規避服務商的配額限制；設計可靠的節流、冷卻、重試與失敗回報。\n5. 如有 retrieval，實作 BM25 + 中文 jieba；只有 embedding API 經確認可使用時才加入 dense。Hybrid 使用 RRF 合併排名，保存來源 metadata 與引用。檢索資料不存在時不能假造測試資料。若 resources.retrieval.web_search.enabled=true，必須用 ddgs.text/news 搜尋列表，再以 requests 取得實際網頁正文；需要 JavaScript 渲染時才使用 Playwright，保留來源 URL、標題、時間、證據段落及引用，加入抓取限流、SSRF 與 prompt injection 防護；不得只依搜尋摘要回答。若有 web_search.cache，需以 openpyxl 維護獨立的 data/web_cache.xlsx（queries／pages／chunks），優先使用未過期的查詢與網頁正文快取；未命中才搜尋或抓取。支援 TTL、強制更新、ETag／Last-Modified 條件請求、URL 去重、過期標示、離線回退、原子寫檔及對應 mock 測試；不得覆寫使用者知識庫 Excel。\n6. 如有 multimodal API，僅依實際提供的 Python Client／Notebook 與已確認的端點工作；依 health、submit、poll、download 的介面建立背景任務，處理超時、進度與錯誤，不能假裝生成成功。\n7. 產生 app.py、templates、static、requirements.txt、README.md、.env.example、.gitignore、啟動說明及自動測試。不要產生真正 .env，不要覆寫既有 .env。\n8. 使用 Python 3.11+，UI／說明為臺灣繁體中文，提供清楚的錯誤回報。實際測試 Flask API、Agent 對接、工具執行、資料與回傳流程；不可把模擬測試當 Live 測試。若工具無法直接執行或沒有外部 API 權限，明確列出未驗證事項。\n9. 任何對外寫入、執行未知程式碼或付費服務，先取得使用者明確同意；程式執行必須隔離，禁止向瀏覽器暴露 API Key。\n10. 交付完整 ZIP 和使用說明；若目前 AI 平台沒有操作檔案或終端權限，請提供完整檔案並如實告知測試限制。\n\n## 已確認的專題 JSON\n\n~~~json\n${json}\n~~~\n\n現在開始建立專題，不要重新把需求改寫成另一套流程。`;
+  return `# Vibe Coding｜依已確認 JSON 建立完整 AI Agent Flask 專案\n\n請以 ChatGPT、Gemini 或其他具有程式產生與實際測試能力的 AI 平台完成專案。請以附帶的 JSON 作為唯一可信的專題設計規格。\n\n要求：\n1. 先驗證 JSON 的 project、entry、agents、edges；必須遵守各邊的 from、to、type、condition、payload、retries。畫布座標不代表執行順序。\n2. 根據需求建立真正的專題專屬 Flask 網站，不要建立通用 Agent Builder。能用 Python 函式完成的確定性工作不要額外耗用 LLM。需要協作時依新版 AG2 文件選擇 Agent、Tool 與 workflow，必要時使用 Python orchestrator，禁止虛假的工具呼叫。\n3. 僅 API Key 透過 os.getenv() 從私密 .env 讀取，JSON 只保存其變數名稱。Ollama 與多模態服務 URL 由 JSON 的 resources.llm.ollama_endpoints 與 resources.multimodal.services[*].base_url 取得，提供可修改的受保護後端設定頁面或 config/services.json，不需把 URL 放進 .env。獲得授權時以 Ollama /api/tags、/api/show 驗證模型；對無法連線的 127.0.0.1 或公開端點標註未驗證，不可假設已完成測試。\n4. 各 Provider 的模型、額度、功能及免費條件需實際驗證。編號金鑰可指向不同帳戶或專案，但不可用來規避服務商的配額限制；設計可靠的節流、冷卻、重試與失敗回報。\n5. 如有 retrieval，實作 BM25 + 中文 jieba；只有 embedding API 經確認可使用時才加入 dense。Hybrid 使用 RRF 合併排名，保存來源 metadata 與引用。檢索資料不存在時不能假造測試資料。若 resources.retrieval.web_search.enabled=true，必須用 ddgs.text/news 搜尋列表，再以 requests 取得實際網頁正文；需要 JavaScript 渲染時才使用 Playwright，保留來源 URL、標題、時間、證據段落及引用，加入抓取限流、SSRF 與 prompt injection 防護；不得只依搜尋摘要回答。若有 web_search.cache，需以 openpyxl 維護獨立的 data/web_cache.xlsx（queries／pages／chunks），優先使用未過期的查詢與網頁正文快取；未命中才搜尋或抓取。支援 TTL、強制更新、ETag／Last-Modified 條件請求、URL 去重、過期標示、離線回退、原子寫檔及對應 mock 測試；不得覆寫使用者知識庫 Excel。\n6. 如有 multimodal API，將使用者提供的 base_url 分別對應 .ipynb、.py Client；必須讀取其實際路徑／參數，再建立必要的 health、submit、poll、download 或不同 API 流程。不得假設各服務 API 完全相同，亦不得假裝未連線的端點生成成功。\n7. 產生 app.py、templates、static、requirements.txt、README.md、.env.example、.gitignore、啟動說明及自動測試。不要產生真正 .env，不要覆寫既有 .env。\n8. 使用 Python 3.11+，UI／說明為臺灣繁體中文，提供清楚的錯誤回報。實際測試 Flask API、Agent 對接、工具執行、資料與回傳流程；不可把模擬測試當 Live 測試。若工具無法直接執行或沒有外部 API 權限，明確列出未驗證事項。\n9. 任何對外寫入、執行未知程式碼或付費服務，先取得使用者明確同意；程式執行必須隔離，禁止向瀏覽器暴露 API Key。\n10. 交付完整 ZIP 和使用說明；若目前 AI 平台沒有操作檔案或終端權限，請提供完整檔案並如實告知測試限制。\n\n## 已確認的專題 JSON\n\n~~~json\n${json}\n~~~\n\n現在開始建立專題，不要重新把需求改寫成另一套流程。`;
 }
 async function loadFile(file){
   if(!file)return;
