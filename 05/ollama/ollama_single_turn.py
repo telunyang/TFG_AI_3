@@ -19,7 +19,7 @@ client = Client(
 # Send one question with a system instruction and generation options.
 # 傳送一個問題，並套用系統指令和生成參數。
 response = client.chat(
-    model="gemma4:e2b",
+    model="nemotron-3.5-bolt:e4b",
     messages=[
         {"role": "system", "content": "你是一個知識淵博且樂於助人的 AI 助理。"},
         {"role": "user", "content": "幸福的定義是什麼？"},

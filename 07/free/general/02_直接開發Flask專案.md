@@ -44,7 +44,7 @@ ddgs==9.16.1
 ## 三、模型服務、金鑰與多模態附件
 
 1. Word 第 6-1 題只提供 `.env` **變數名稱**，例如 `GEMINI_API_KEY`、`OPENAI_API_KEY_01`；第 6-2 題再逐項指定 `變數名稱 → Provider／model_id`（可多組），未指定模型時才查詢目前可用模型並選擇。後端使用 `os.getenv()`／`python-dotenv` 讀取本機實際值，絕不把金鑰寫入前端、日誌、JSON 或交付 ZIP。若是「無」，就不能假設有商用金鑰。模型名稱與功能須以實際 API 權限、模型列表及最小呼叫確認，不得在背景替換使用者指定模型。
-2. Word 第 6-3 題的 Ollama API URL 可直接填 ngrok、域名或 `127.0.0.1`。在有權限且連得上時透過 `/api/tags`、`/api/show` 探測可用模型與能力，按任務選擇聊天、工具呼叫及 Embedding 模型。URL 可於 `config/services.json` 或受保護的 Flask 後端設定中更新，**不需把 URL 寫進 `.env`**；`127.0.0.1` 指的是 Flask 所在主機。
+2. Word 第 6-3 題的 Ollama API URL 可直接填 ngrok、域名或 `127.0.0.1`。在有權限且連得上時透過 `/api/tags`、`/api/show` 探測可用模型與能力，按任務選擇聊天、工具呼叫及 Embedding 模型。Word 的 URL 作為初始預設，網站另須依第十八節提供**按服務數量動態產生的授權網址替換介面**；後端仍可用 `config/services.json` 保存非機密服務資訊，**不需把 URL 寫進 `.env`**；`127.0.0.1` 指的是 Flask 所在主機。
 3. Word 第 9 題每項多模態服務填寫「**模型名稱：API URL**」，例如 `LTX 2.5：https://...`、`Z-Image-Turbo：https://...`、`HeartMuLa：https://...`；**只需附上實際選用模型對應的 `.ipynb`＋`.py` 組合**，不是上傳所有模型。
 4. 必須先讀取每組附件並驗證**真實 API 協定**（health、submit、poll、result、download、payload、模型任務類型），不能假設所有端點一樣；沒有附件或無法連線時，清楚指出哪些尚未驗證，不可捏造影片／圖片／音樂成果。
 5. 多模型與多 Key 使用必須遵守 Provider 的專案／帳戶配額及計費規則；加上佇列、節流、429 backoff、失敗重試和可取消機制，不得透過輪替 Key 規避限制。服務 URL 也須做存取權限和 host／scheme 驗證，不能允許任意內網請求造成 SSRF。
@@ -68,14 +68,21 @@ ddgs==9.16.1
 
 ## 五、資料驅動的口述影片生成（僅在 Word 要求影片時啟用）
 
+**全文件統一片長契約：使用者設定的總片長是目標／限制；驗收時允許 Provider 已確認的影格級技術誤差，不允許任意延長影片內容。**
+
+- **生成前**：`total_duration_seconds` 是整部影片的名目片長目標／規劃限制，不是每段秒數，也不是 API timeout。腳本、分鏡、口述與多段規劃均不得利用容忍值增加內容。
+- **成品驗收**：依實際 Provider／部署確認的 FPS、frame count、容器 time base／音軌規則，事先保存有界 `duration_tolerance_seconds` 及其證據；使用 FFprobe 檢查 `observed_delivered_duration_seconds <= total_duration_seconds + duration_tolerance_seconds`。只有能由影格量化／封裝解釋的微小誤差可以通過，不能任意延長劇情或台詞。
+- **判定範例**：24 FPS、名目片長 15 秒，實測 15.042 秒可能相當於多一個影格，不能僅因超過 15.000 秒直接拒絕；17.000 秒不合格。若尚未確認 Provider 規則，不得假稱已驗證，應提供可操作的相容性驗證方式，並採保守門檻。
+- **特殊要求**：使用者若明確要求絕對不得超時，應先檢查模型支援與可授權的後處理；不得暗中套用一般容忍值。
+
 1. **先萃取完整事實，再依使用者的成品總片長濃縮可口述故事。** 由直接模型呼叫或故事整理函式根據通過相關性門檻的多份證據，製作「重要知識點清單／時間線／因果／人物立場／來源對應」。由腳本生成步驟把故事的重要資訊轉成**角色實際應說出的台詞**，不是僅顯示在網頁文字或字幕裡；審查步驟逐項核對「重要知識點 → 來源 → 台詞」，按總片長限制優先保留起因、關鍵經過與結果；無法涵蓋的細節需如實揭露取捨，不可捏造或讓時長超標。
 2. **人物／互動由語言模型依證據規劃。** 有參考圖或明確角色設定時遵守提供的形象；沒有時根據可查證的年代、年齡、服飾、典型場景、性格／角色關係提出角色視覺設定（character bible），不可確定的外觀只能作為「藝術想像」。輸出角色外觀、聲線、鏡頭構圖、人物互動、動作與發言者；只有明確啟用多段時，才需維持跨段身份、臉部、服飾與聲音一致。旁人是否發言由內容決定；需要口述時優先使用清晰可見的主講者面部及嘴型。
-3. **成品總片長是硬性上限，預設只產生一支影片。** `total_duration_seconds` 是整部成品的上限，不能視為每段秒數。先按語速、停頓及模型能力產出短版口述稿，再由程式檢查字數及預估時間；超出就有限次濃縮，不得為了保留全部文字而自動增加生成片段或延長影片。只有使用者**明確啟用多段模式**時才可拆段，且輸出片段合計仍須符合總長度上限。若服務只能產出不相容的固定秒數，應在提交前回報限制並請使用者調整；不能悄悄改動。
+3. **總片長是整部成品的目標／規劃限制，預設只產生一支影片。** `total_duration_seconds` 是名目總時長，實測驗收允許已確認的影格級技術誤差，不能視為每段秒數。先按語速、停頓及模型能力產出短版口述稿，再由程式檢查字數及預估時間；超出就有限次濃縮，不得為了保留全部文字而自動增加生成片段或延長影片。只有使用者**明確啟用多段模式**時才可拆段，且各段**規劃片長**合計仍須符合名目總片長，成品實測另按已確認的影格級容忍值驗收。若服務只能產出不相容的固定秒數，應在提交前回報限制並請使用者調整；不能悄悄改動。
 4. **實際台詞要由角色的嘴巴說出來。** T2V／I2V Prompt 包含人物、場景、鏡頭、台灣國語或使用者指定口音、逐句引號中的原創對白、語速、停頓、可見臉部與自然 lip sync。預設安靜配樂或無音樂，以語音清晰為優先；拒絕把文字旁白或字幕當作「已講出來」。如果服務僅生成無聲影片，需在附件確實支援且使用者同意時結合 TTS＋對嘴／audio-to-video 等可行方案；不可假裝影片本身已發聲。遵守模型實際語音／影片生成能力，且不得保證模型一定精確念對每個字。
-5. **禁止將字幕或任何文字燒進影片畫面。** 生成 Prompt 應包含 `no on-screen text, no subtitles, no captions, no lower thirds, no signs with readable text, no watermark, no credits, no typography` 等約束；這屬提示而非技術保證。需抽查關鍵影格，發現不必要的文字就調整 Prompt 或重新生成。Flask 可在播放器外顯示標題、來源及標註「AI 模擬演繹」，但輸出 MP4 本身不得嵌入可讀文字。SRT 應為**獨立可下載的外部字幕檔**，不合成、燒錄進影片。
+5. **禁止未經授權將字幕或任何文字燒進影片畫面。** 模型原生畫字、後製燒字、播放器外掛字幕須分別處理；`negative_prompt` 僅在已驗證有效時使用，不能假設把 `no subtitles` 加進 positive prompt 即保證成功。需抽查關鍵影格，發現未授權文字時依規格回報或經同意有限次重新生成。Flask 可在播放器外顯示標題、來源及「AI 模擬演繹」，但 MP4 本身不得嵌入未經授權的可讀文字。SRT 應為獨立可下載字幕檔，不燒錄進影片。
 6. **音訊／口述驗收不能只看 Prompt。** 每支影片至少核對：影片有音軌、人物可辨識、嘴型基本對應、實際聲音能辨讀、台詞順序與重點覆蓋、沒有未要求的內嵌文字、影片播放正常。可用有授權的 ASR 取得口述轉寫及時間戳，再與腳本比較，依實際音訊生成／校準 SRT。若無 ASR 或無法核對發音，只能提供標明為**「依腳本估計的 SRT」**，不得聲稱精確等於影片實際語音；無法辨讀或缺句時必須重試／標示失敗，不能靠製造 SRT 掩蓋問題。
 7. **分鏡與成果要可追溯。** 保存 `story_facts.json`（含來源 IDs）、`script.json`／台詞、生成用 `prompt`、單筆生成任務 ID 與進度、影片驗證結果、最終 MP4、外部 `.srt`。可用經測試的 ffmpeg 進行片段拼接與音訊處理，明確說明來源與輸出的 FPS／尺寸／片長；需要 ffmpeg 或 ASR 等新依賴時，列明安裝需求及是否實測。API 介面和支持的參數一律以使用者提供的 `.ipynb`、`.py` 實際內容為準，不可假定所有 LTX 系列或其他模型都提供同樣的音訊能力。
-8. **影片參數以 Word 第 E 區為準。** 支援填寫 `width`、`height`、`fps`、`aspect_ratio`、`total_duration_seconds`（整部成品總長度上限）、`seconds_per_clip`（僅明確要求多段時才有）、口音、角色規格、字幕策略、最大重試等；先驗證所選模型端點是否支援這些值，無法支援時回報可用範圍及替代方案，**不得默默將使用者選擇替換掉**。
+8. **影片參數以 Word 第 E 區為準。** 支援填寫 `width`、`height`、`fps`、`aspect_ratio`、`total_duration_seconds`（整部成品名目總片長目標／限制）、`seconds_per_clip`（僅明確要求多段時才有）、口音、角色規格、字幕策略、最大重試等；先驗證所選模型端點是否支援這些值，無法支援時回報可用範圍及替代方案，**不得默默將使用者選擇替換掉**。
 
 ## 六、Flask 網站、真實測試與交付
 
@@ -129,7 +136,7 @@ ddgs==9.16.1
 
 ### 8.5｜遠端 API、Ollama、ngrok、模型及資源限制
 
-- 服務網址由可信管理者設定，限制 scheme、host、port、重新導向及存取權限；允許明確配置的 localhost Ollama 與任意外部檢索 URL 採不同政策。外部檢索防 SSRF 包含 IPv4/IPv6、DNS rebinding、metadata、redirect 每跳驗證、proxy／出口限制；僅先做 DNS 檢查而由 requests 再解析並不完整。禁止任意使用者指定服務 host。
+- 服務網址以 Word 的實際回答為初始預設；允許**已授權的使用者在第十八節規範的既有服務槽位中替換 URL**，但仍須限制 scheme、host、port、重新導向及存取權限；明確配置的 localhost Ollama 與外部檢索 URL 採不同政策。外部檢索防 SSRF 包含 IPv4/IPv6、DNS rebinding、metadata、redirect 每跳驗證、proxy／出口限制；僅先做 DNS 檢查而由 requests 再解析並不完整。禁止未授權訪客任意指定 host 或將 URL 替換介面當成對內網的請求代理。
 - 健康檢查、Ollama `/api/tags`、`/api/show` 與實際 tool-call smoke test 共同確認模型能力，不以模型名稱或 capabilities 欄位單獨保證工具可用。處理空模型列表、模型載入失敗、context window、GPU OOM、模型不支援結構化輸出、ngrok 過期／warning HTML、401/403/404/429/5xx、TLS、DNS、timeout、非 JSON、JSON schema 變更。不要把 HTML 錯誤頁當作成功 JSON。
 - 所有網路呼叫有 connect/read timeout 與整體 deadline；有限重試、指數退避及 jitter、合理遵守 Retry-After。429 不以輪替金鑰規避。重試 POST 僅在服務支援 idempotency 時沿用同一 X-Request-ID，持久化遠端 ID；輪詢失敗重查同一 job 而非重新提交；下載串流限制大小、重試並檢查完整性。不要無限 while True、固定長時間阻塞 async event loop、吞掉全部例外或把失敗當空結果。
 - **驗收：** mock 模擬每種狀態碼、HTML、schema 缺欄、斷線恢復、429、逾時、重複 POST、取消及遠端故障；Live 測試須區分健康檢查成功、模型工具呼叫成功與完整任務成功。
@@ -194,9 +201,9 @@ ddgs==9.16.1
 
 ### 9.2｜影片總秒數、語速與無字幕口述
 
-- **`total_duration_seconds` 是整部成品的最大秒數**。例如指定 15 秒，必須先把「起因 → 關鍵經過 → 結果」摘要成 15 秒內能清楚口述的內容；預設只生成**一支**影片，不因故事較長就自動生成多段。只有使用者明確開啟「多段模式」才可拆分，而且合計必須不超過總上限，並在提交前確認模型對時長／幀數的支援範圍。
+- **`total_duration_seconds` 是整部成品的名目總片長目標／規劃限制**。例如指定 15 秒，必須先把「起因 → 關鍵經過 → 結果」摘要成 15 秒內能清楚口述的內容；預設只生成**一支**影片，不因故事較長就自動生成多段。只有使用者明確開啟「多段模式」才可拆分，而且**規劃片長**合計不得超過名目總片長，並在提交前確認模型對時長／幀數的支援範圍。
 - 可提供 `speaking_rate = slow | normal | fast`、口音、聲音風格與字幕策略。字數初估可從慢速約 2.5–3.0 字／秒、正常約 3.0–3.8 字／秒、快速約 3.8–4.5 字／秒起步，再乘 **0.75–0.85** 安全係數為停頓留餘裕；這些是可校準的工程估算，不是模型一定能念完的保證。若檢索資料太多，保留核心重點，將省略細節另列在網頁文字說明或來源區，不得讓影片超時。
-- 影片 Prompt 應要求畫面乾淨、人物面部清晰、自然嘴型、可辨識語音，以及 `no subtitles, no captions, no on-screen text, no readable typography`。**Prompt 只能降低出字機率，不能保證模型永遠不畫字**；應檢查輸出畫面。字幕採**外部可下載 SRT／VTT**，播放器可選擇顯示，但 MP4 不燒錄字幕；只有使用者明確要求才變更此預設。
+- 影片 Prompt 要保留使用者指定美術風格、人物面部清晰、自然嘴型及可辨識語音。**無畫面文字限制依 Provider／Workflow 能力分流到乾淨場景正向描述、有效的 Negative Prompt 與後製禁止疊字政策，不能在所有正向 Prompt 一律加入 `no subtitles`**；Prompt 不保證模型不會畫出亂碼，必須實際檢查影格。字幕採**外部可下載 SRT／VTT**，播放器可選擇顯示，但 MP4 不燒錄字幕；只有使用者明確要求才變更此預設。
 - 實際驗收需檢查 FFprobe 實測秒數、音軌、可播放性、口述是否講完及畫面是否有不需要的字。若支援 ASR，比對實際音訊與目標台詞；否則只能標示「依腳本估算的字幕」，不能當成已驗證逐字稿。失敗有限次重試並顯示真正原因，不能用假字幕或影片檔存在就宣稱成功。
 
 ### 9.3｜一次提交與遠端工作恢復：明確的任務狀態機
@@ -204,7 +211,7 @@ ddgs==9.16.1
 - 每個邏輯工作建立持久化的 `run_id`／`request_id`；遠端提交成功立即保存 `external_job_id`（及服務／參數版本）。建議狀態：`created → script_ready → submitting → submitted → queued → generating → done → downloading → verified → completed`；失敗／取消／提交結果不明則進入對應終態或人工核對狀態。狀態轉移必須可驗證、不可被過期工作覆寫。
 - **同一邏輯工作不得重複 POST 生成。** `submit` 回傳不明（例如請求逾時但遠端可能已接受）時，不可無條件重送；先用既有 request ID 查詢服務端是否已建 Job。`X-Request-ID` 只有服務端明確保證冪等時才有效；如果無可查詢機制就標記 `submission_unknown` 並暫停自動重試，避免產生重複影片／費用。
 - 遠端 `done` 後沿用**原 `external_job_id`** 下載 MP4，使用 `.part` 暫存、完整性檢查與 FFprobe 驗證，立即顯示播放器及下載。下載失敗只重試下載，**不得回頭重新生成**。工作已 `verified/completed` 時直接回傳已保存的產物，並結束背景流程，不再做其他影片提交。
-- 重啟 Flask 後從 SQLite 或經鎖定／原子更新的持久化狀態恢復，必要時重新輪詢同一遠端 Job；SSE 或瀏覽器中斷不應使生成停止或重送。總片長上限與網路 request timeout、GPU 生成等待時間是不同參數，不能將「15 秒影片」誤設定為「API 15 秒後強制超時」。
+- 重啟 Flask 後從 SQLite 或經鎖定／原子更新的持久化狀態恢復，必要時重新輪詢同一遠端 Job；SSE 或瀏覽器中斷不應使生成停止或重送。總片長目標／限制與網路 request timeout、GPU 生成等待時間是不同參數，不能將「15 秒影片」誤設定為「API 15 秒後強制超時」。
 
 ### 9.4｜網頁即時狀態、可收合設定與 GPU 觀測
 
@@ -233,7 +240,7 @@ ddgs==9.16.1
 ### 十.1｜UI 參數必須真的影響執行結果（Parameter Effectiveness）
 
 1. **端對端資料流不能斷**：`Word 實際答案 → UI 初始值 → 使用者修改 → JavaScript POST → Flask 解析及驗證 → 不可變的 run_config → 執行流程 → Provider payload → Provider 接受的設定 → 真實產物驗證`。欄位可輸入、Job JSON 有保存數值，都**不等於參數生效**；需追查每一階段，不得偷偷交換、捨棄或覆寫設定。
-2. **以實例做映射回歸測試**：輸入 `width=640`、`height=360`、`fps=30`、`seed=123`、`total_duration_seconds=12`，檢查前端、POST、run_config 的使用者要求值一致，Provider payload 則必須依**已驗證的服務契約**精確映射（不保證數值相同），並用 FFprobe 核對實際寬、高、FPS、片長（不超過 12 秒）。**另有疑似 width／height 對調的案例（原需求 512×288，紀錄卻為 288×512）**：先確認使用者當時有無手動修改；若屬映射錯誤，新增固定 regression test，不能直接假定原因並只改某一行。
+2. **以實例做映射回歸測試**：輸入 `width=640`、`height=360`、`fps=30`、`seed=123`、`total_duration_seconds=12`，檢查前端、POST、run_config 的使用者要求值一致，Provider payload 則必須依**已驗證的服務契約**精確映射（不保證數值相同），並用 FFprobe 核對實際寬、高、FPS、片長（12 秒為名目目標；僅允許已確認的影格級技術容忍值）。**另有疑似 width／height 對調的案例（原需求 512×288，紀錄卻為 288×512）**：先確認使用者當時有無手動修改；若屬映射錯誤，新增固定 regression test，不能直接假定原因並只改某一行。
 3. **逐一建立參數效力表**：`width/height/fps → 經過 Provider Contract Adapter 的 payload＋FFprobe（不假設同值）`；`seed → 真正提交的 seed（有提供時另核對服務回傳）`；`total_duration_seconds → 口述預算＋Provider duration／frame_count＋成品上限`；`speaking_rate/accent → 腳本預算／實際 Prompt／語音驗收`；`subtitle_strategy → 外掛 SRT、MP4 無燒字策略`；`candidate_limit/search_rounds → DDGS 搜尋行為`；`relevance_threshold/final_max_sources/retrieval_mode → 排名及最後採用的證據`；`page_timeout_seconds → 逐頁 HTTP 請求`；`force_refresh → 跳過有效快取並實際更新`。檢查「改變某個值時，相應的下游行為是否真的改變」，對不能驗證者標示未驗證。
 4. **設定不可隱形替換或跨工作污染**：檢查所選模型的 capability／合法範圍，無法支援的寬高、FPS、時長等，於提交前回傳 422 與允許選項；如 Provider 參數與成品尺寸的語意不同，須用已驗證的 Adapter 映射，不得私自改用預設值。每個工作獨立保存 `run_config`，Job A（512×288、seed 42）與 Job B（640×360、seed 999）併行時不可共用或覆寫設定；網頁編輯中的值也不得修改執行中的工作。
 
@@ -262,7 +269,7 @@ ddgs==9.16.1
 
 ### 十.5｜真實影音驗收、診斷與歷史還原
 
-1. **三層時長驗證**：生成前驗證依 `speaking_rate` 估計的口述時間；提交前驗證 Provider 的 `duration`／frame count 轉換及能力範圍；生成後以 FFprobe 驗證 `actual_duration <= total_duration_seconds`、實際 width、height、FPS、影片流與音軌。有音軌不等於人物講出指定台詞，沒有 ASR 或人工查核時應把 speech／lip sync 標為 `unverified`，不得假稱完成；孔子等第一人稱台詞要在網頁標註「AI 模擬演繹，非史料原話」。
+1. **三層時長驗證**：生成前驗證依 `speaking_rate` 估計的口述時間；提交前驗證 Provider 的 `duration`／frame count 轉換及能力範圍；生成後以 FFprobe 驗證 `observed_delivered_duration_seconds <= total_duration_seconds + duration_tolerance_seconds`（僅計入可證明的影格／封裝誤差，不得增加內容）、實際 width、height、FPS、影片流與音軌。有音軌不等於人物講出指定台詞，沒有 ASR 或人工查核時應把 speech／lip sync 標為 `unverified`，不得假稱完成；孔子等第一人稱台詞要在網頁標註「AI 模擬演繹，非史料原話」。
 2. **字幕與媒體一致性**：預設 MP4 不燒字，獨立 SRT 依腳本估計時，UI／metadata 清楚標示 `estimated`；若由 ASR 校準才標 `aligned`。最終 SRT 必須在下載影片、取得**實際影片秒數**後再檢查：末句 end 不可超出實際 duration、時間戳要合法、不重疊。角色外觀無法查證的細節標示 `artistic reconstruction`，不得當成確證史實。
 3. **診斷應有可執行資訊**：每次失敗至少顯示 `stage`、`reason/error_code`、revision/retry 次數、上一個成功階段、`external_job_id` 是否存在、已保存資料及使用者可採取的下一步。內容修正事件示例：`script_generated → script_validation_failed(duration_budget_exceeded) → script_revision_requested(1) → script_revised → script_validation_passed → script_ready`。逐頁抓取需顯示 URL／HTTP code／拒收原因；預設收合明細不等於隱藏簡短錯誤摘要。事件只能反映真實執行，不能用 UI 動畫虛構已處理或生成的進度。
 4. **歷史載入與重新生成是不同操作**：點歷史記錄只能讀入 query、來源、當次設定和既有成果，**絕不呼叫 DDGS、LLM 或影片 submit**；使用者明確按「重新生成」才新建 `run_id/request_id`，設定 `regenerated_from`，且不可覆寫舊產物。歷史與快取各自保存、正確隔離權限。並行的兩個工作要驗證快取和任務設定不互相污染。
@@ -485,7 +492,7 @@ ddgs==9.16.1
 1. **UI 填的 `width/height/fps/total_duration_seconds` 是使用者要求的最終成品規格**，每個 Job 保存 immutable `requested_*`。Provider Adapter 依真正服務契約算出 `provider_*`；產物下載後以工具得到 `observed_*`。不得直接假定「API payload 寬高 = 最終 MP4 寬高」，也不得僅檢查已儲存設定就宣稱生效。
 2. **倍率只在證據足夠時使用**。例如某部署有經確認的空間上採樣倍率 2，理論上要求最終 `512×288` 會得到候選 Provider 尺寸 `256×144`。若該部署**確實要求**模型輸入最小邊長 256 且為 32 的倍數，`144` 就不合法；這些限制只是特定部署的條件例，**不得當成所有 LTX 2.5 的通用規格**。倍率可不相等、受任務／後處理影響或非固定，不能從單一 mismatch 自動自我修改 `config/services.json`。無法整除時不能用 `//` 截斷蒙混。
 3. **先找能直接合規的參數，再考慮可授權的替代方案**。如沒有合法 Provider 輸入能直接得到所需最終尺寸，可在 UI 顯示各方案的模型原始輸出尺寸、是否等比例縮放／補邊／裁切、畫質／視野損失、成本及可否維持指定長寬比；使用者明確同意後才可執行相應後處理。**禁止偷偷 Resize 或以後處理隱藏原有 Provider 映射錯誤**；保留原始模型產物及 `postprocessed=true`、明確方法、核准紀錄，並分別驗證「原始輸出」與「最終交付品」。無法滿足要求則提供合法尺寸／模型替代，不可默默更改 FPS、總片長或解析度。
-4. **提交前先驗證**：範圍、倍數、整數、FPS、時長與 frame count 換算、seed、使用任務模式和後處理支援能力；不能確定就標示原因並引導驗證，而非先消耗 GPU 後才發現不合法。FFprobe 最終量測以使用者原始最終規格為基準；保留容器／影格時間精度的可解釋差異，但**硬性總片長上限不得被放寬**。
+4. **提交前先驗證**：範圍、倍數、整數、FPS、時長與 frame count 換算、seed、使用任務模式和後處理支援能力；不能確定就標示原因並引導驗證，而非先消耗 GPU 後才發現不合法。FFprobe 最終量測以使用者原始最終規格為基準；保留容器／影格時間精度的可解釋差異，但**不得因容忍值而擴增規劃片長或延長劇情／台詞；成品驗收依已確認的影格級容忍值**。
 
 ### 十五.5｜驗證契約持久化、版本失效及背景任務安全
 
@@ -539,3 +546,243 @@ ddgs==9.16.1
 - **端對端與防副作用**：由 Flask `/jobs` 建立含中文問題與候選網址的任務，完成真正的擷取與下游資料處理（外部服務可 mock）；確認 retrieval 的單頁失敗不會無故觸發重新 LTX submit，已提交遠端工作不因 retrieval／下載錯誤被重複建立，取消後停止新呼叫。將本次 `http.client._encode_request` 問題列為 Regression 測試，不可只測沒有中文的 ASCII URL 或只測 `GET /`。
 
 **純 Python 專屬整合要求**：將 URL 解析／percent-encoding、HTTP 請求與單頁容錯實作於現有一般 Python `fetch()`／`retrieve()` 或清楚的局部函式，不新增 Agent、Handoff、AG2 或多 Agent 顯示；Flask 背景工作只接收實際 Python 函式所回傳的結構化結果。
+
+## 十七｜自然語言問題與影片製作要求的分離解析（適用於混合查詢）
+
+
+**實際案例與定位。** 例如使用者說：「我想了解桃園三結義的故事，希望能用日式可愛卡通的方式來呈現，字幕使用英文，但是說話的聲音是繁體中文。」真正的**研究／檢索問題**是「桃園三結義的故事」；「日式可愛卡通」是影像風格，「英文」是字幕語言，「繁體中文」在口語情境代表希望使用中文口述，應落成 `spoken_language=zh-TW`（必要時明確標示推定）、`script_locale=zh-Hant-TW`，而不是把「繁體」當成一種聲音。**字幕語言與口述語言必須分開保存**；未明確要求嵌入字幕時，沿用既有的「MP4 無燒錄字幕＋外部英文 SRT/VTT」預設，不能忽略英文字幕要求，也不能因字幕要求就擅自燒字。這個案例的既有 trace 已顯示 `research_query` 為「桃園三結義的故事」，並不能據此認定本次檢索詞提取失敗；本節用來把這種行為寫成所有自然語言題目必須遵守的可測試契約。
+
+### 十七.1｜將單一 User Query 分解成「內容意圖」與「產物約束」
+
+1. **完整保留 `original_user_query`，另產生結構化且可驗證的 `RequestUnderstanding`／`IntentPlan`。** 至少包含 `research_query`（真正要查的核心主題／問題）、`research_entities`、`research_questions`／`evidence_requirements`、`requested_output`、`generation_preferences`（畫風、角色、鏡頭、場景、語氣等）、`spoken_language`、`script_locale`、`subtitle_language`、`subtitle_mode`、`total_duration_seconds`（若指定）、`source_of_each_setting`（user／Word／default／inferred）及 `unresolved_constraints`。需要多個研究子問題時可輸出 `research_queries[]`，但每項都要聚焦於事實問題，不得被影片風格污染。
+2. **內容與呈現需求分流。** `research_query`／`research_queries` 只提供給 DDGS、Excel／Hybrid 檢索、查詢擴展與證據覆蓋判斷；「日式可愛卡通、2D、寫實、動作、鏡頭、配色、解析度、FPS、Seed、字幕語言、口音、人物語速」等只送給對應的腳本／視覺／聲音／字幕流程。使用者可能在同一句話混用研究目的與製作指令，禁止將整段原文當作唯一的 DDGS 查詢或將畫風當成史料關鍵字；原文仍須保存供追溯。
+3. **動態理解，不使用脆弱的固定關鍵字刪除。** 例如「日式可愛卡通呈現桃園三結義」中的「日式可愛卡通」是呈現限制；但「日本動漫如何改編桃園三結義？」中的「日本動漫」是研究主題的一部分，不能一律從查詢刪除。保留人名、事件、地點、年代、否定詞、問句焦點與重要限定語；必要時以已驗證可用的 LLM 做語意解析／有限次 Schema 修正，再用 Python 明確驗證結果。未具備 LLM 或解析信心不足時，應使用保守、可解釋的解析或在必要時提示使用者補充，不得亂猜史實問題。
+4. **區分不同參數的來源及優先順序。** 本次自然語言中明確提出的製作要求優先於網站／Word 的可覆蓋預設；未提及才繼承 Word 或站台預設；安全規則、已明確限定的總片長、Provider 能力限制仍須遵守。若本次輸入與表單或 Word 的明確硬限制互相矛盾，顯示衝突及選項，不得悄悄覆寫。`subtitle_language=en` 不等於 `subtitle_mode=burned_in`；「字幕使用英文」預設是外掛英文字幕，只有明確要求畫面內字幕才走經授權的嵌入模式。
+5. **口述語言、稿件書寫系統與字幕翻譯分開。** `spoken_language=zh-TW` 表示口述的中文／臺灣語系偏好，`script_locale=zh-Hant-TW` 表示台詞用臺灣繁體書寫，`subtitle_language=en` 表示另製英文字幕；人物實際說話應以中文音訊／口型為驗收依據。英文字幕需根據通過審查的中文台詞翻譯，若有可靠 ASR 時以實際口述校準時間與內容；沒有 ASR 時明確標示「依腳本估算／翻譯」，SRT 最後時間不得超出實測片長。不要把英文字幕當成英文配音，更不能用英文字幕掩蓋中文台詞沒有講完。
+6. **保留研究與模擬演繹的邊界。** 不論畫風是寫實、動畫或日式可愛卡通，史實／文學敘事／AI 藝術重建的標示、Fact→Source→Chunk→台詞 Grounding、故事覆蓋、長度預算與 Revision Loop 都不變；畫風不得成為未經證實的史實來源。即使檢索到足夠證據，也必須先讓中文口述稿通過時長和內容審查，才允許生成影片；英文 SRT 在影音完成後按實際秒數校驗。
+
+### 十七.2｜結構化解析範例與下游傳遞規則
+
+下列是**結構示例，不是固定回覆內容**，不表示該題已經查證或生成成功：
+
+```json
+{
+  "original_user_query": "我想了解桃園三結義的故事，希望能用日式可愛卡通的方式來呈現，字幕使用英文，但是說話的聲音是繁體中文。",
+  "research_query": "桃園三結義的故事",
+  "research_questions": ["事件內容與起因經過結果", "《三國演義》與正史記載的差異"],
+  "requested_output": "historical_narration_video",
+  "generation_preferences": {"visual_style": "cute_japanese_cartoon"},
+  "spoken_language": "zh-TW",
+  "script_locale": "zh-Hant-TW",
+  "subtitle_language": "en",
+  "subtitle_mode": "external_srt",
+  "subtitle_burned_in": false,
+  "source_of_each_setting": {"research_query": "user", "visual_style": "user", "spoken_language": "inferred_from_user", "subtitle_language": "user", "subtitle_mode": "default"}
+}
+```
+
+- **解析結果要有明確資料流：** `original_user_query → request_analysis → validated_intent_snapshot → retrieval(research_query) → evidence/facts → script(spoken_language, script_locale) → review → visual_prompt(generation_preferences) → Provider → audio validation → subtitle(subtitle_language, subtitle_mode) → artifacts`。各階段只讀取其需要的欄位，不得重新解析原始文字而改變已確定的研究主題；合法的查詢擴展需明確標記是為了補證據。參數從 UI、POST 到不可變 Job Snapshot 與實際輸出的 effectiveness test 仍然必須成立。
+- **請求分析錯誤要能回復且可見。** LLM 輸出空的 `research_query`、混入風格詞、漏掉 `subtitle_language`、把 `zh-TW` 誤當英文發聲、輸出無效 JSON 或與使用者原文衝突時，應回報具體欄位及有限次修正，不可默默採用錯誤結果或無限重試。若使用者是單純詢問史料而沒有要求生成影音，不能硬切到影片生成。
+- **可追蹤、不可洗版。** 在原本可捲動／可展開的 `request_analysis` 階段展示「辨識的研究主題／輸出類型／畫風／口述語言／字幕語言／字幕方式」與解析耗時，並將經檢查的欄位持久化供歷史紀錄回填；公開 UI 預設不展示完整敏感原文或私有模型推理。事件使用穩定 `event_id` 去重；如果 `request_analysis`、`retrieval` 事件重覆顯示，應先比對後端事件 ID／SSE 重播／前端重複訂閱，**不能單靠畫面有兩行就斷定 LLM 實際呼叫了兩次**。DDGS 查詢和 LTX polling 仍依先前的合併顯示規則處理。
+
+### 十七.3｜強制回歸測試（不只測 Prompt 有沒有文字）
+
+1. **混合查詢：** 輸入上方桃園三結義案例，斷言 DDGS／Hybrid 收到的核心 `research_query` 是「桃園三結義的故事」而非整段畫風／字幕描述；實際生成 Prompt 接收到日式可愛卡通風格與繁體中文台詞，字幕流程收到 `en` 且預設外掛 SRT。
+2. **純知識問答：** 「桃園三結義是正史還是文學？」應執行證據檢索與有來源的文字回答；沒有使用者授權時，不得提交影片工作。
+3. **語意相似但任務不同：** 「日本動畫怎麼改編桃園三結義？」中的日本動畫是研究問題，不可誤刪；「以日式動畫風格講桃園三結義」則是影片風格限制，檢索詞應著重桃園三結義本身。
+4. **分離不同語言：** 測試中文口述＋英文 SRT、英文口述＋中文字幕，以及未指定口音／字幕模式；不得把 `subtitle_language` 覆寫 `spoken_language`，也不得把字幕寫入 MP4（除非本次明確要求且已通過設定／服務驗證）。
+5. **多條限制、衝突與錯誤：** 測試片長、FPS、畫風、聲線及 Word／前端參數的優先順序，遇到不支援的 Provider 能力須有可操作錯誤。解析結果 JSON 缺欄、LLM 重試、使用者取消後不得發起新的昂貴呼叫。
+6. **完整資料流與事件：** 使用實際 Flask Endpoint 與真實解析／驗證／檢索／字幕函式（僅外部模型／網路／影片服務可 Mock）斷言 `research_query` 經查詢擴展仍與用戶主題對齊、`generation_preferences` 進入 Provider Prompt、英文字幕獨立生成、腳本未過審時 LTX submit 次數為零；確認 Snapshot、歷史回填、重複事件 ID 去重與 SSE 重接不造成模型重複呼叫。Mock 成功不得宣稱 Live 影片與口述語言品質已驗證。
+
+
+**純 Python 特有的執行要求：** 使用一般 Python 解析函式／一次直接 LLM 呼叫（必要時）建立 `validated_intent_snapshot`，再以函式參數將不同欄位傳入 `retrieve()`、`generate_script()`、`validate_script()`、`build_video_prompt()`、`submit_video()` 及 `build_subtitles()` 等實際存在的功能；函式名稱依專案調整即可。不可為了實作意圖辨識而引入 AG2、Agent Router、Handoff 或多 Agent 協作圖。沒有要求模型工具呼叫的必要，所有條件分支及停止規則仍由 Python 控制。
+
+
+## 十八｜依 Word 需求動態建立 Ollama／多模態 API 網址設定介面（必須落實）
+
+**設計目標：Word 決定有哪些服務與初始網址，Flask 網頁提供同一批服務的可編輯替換網址；網站不需要改 Python 程式碼、不需編輯 `.env`，也不應把影片／圖片／音樂服務數量寫死。** ngrok URL 常會在重新啟動遠端 Notebook 或服務後變更，因此這是正常操作流程，而非只供開發者使用的除錯功能。本節是對前述服務設定、Provider 相容性驗證、不可變 Run Snapshot、歷史紀錄與 SSRF 保護的補充；若先前文字暗示 URL 只能在原始碼或 `config/services.json` 手動修改，以本節的授權網頁替換機制為準。
+
+### 18.1｜以實際填寫的 `.docx` 建立服務清單，不硬編碼數量
+
+1. 開發時解析 `01_專案需求表.docx` **實際回答**：Ollama 使用 Word 第 6-3 題（或需求表版本中對應的 Ollama URL 題），多模態使用第 8／9 題的**實際選用功能、模型名稱、URL 與對應 `.ipynb`＋`.py`**。只讀使用者填寫內容，不能把「例如」的 LTX／Z-Image／HeartMuLa 或網址當作已啟用；未指定／「無」／「請 AI 建議」依原規則處理。Word 可列多個 Ollama URL 與多個多模態模型，甚至多個同類型服務，必須逐筆辨識；不能只建立固定的 `ollama_url` 和 `video_url` 兩個欄位。
+2. 將各項需求正規化為**穩定的 Service Registry**，至少有 `service_id`（例如 `ollama_01`、`image_01`、`video_01`、`music_01`，僅為命名示例）、`service_type`（`ollama`／`image`／`video`／`music`／其他實際選用類型）、`display_name`、`provider_or_model`、`docx_default_base_url`、`effective_base_url`、`endpoint_contract_id`／附件對應、`status`、`last_checked_at`、`verification_scope` 與設定版本。對同類服務用**唯一穩定 ID**，避免重排頁面後把圖片模型的 URL 套到影片模型；沒有對應服務就不要顯示虛構的欄位。模型名稱／Client／Server API 協定與 URL 是不同資訊，**替換 URL 不代表可以自動更換模型或改用其他端點契約**。
+3. Word 是**專案初始預設來源**，而不是永遠覆蓋網站輸入。有效網址的優先順序應為「**本次經驗證且明確套用的網址 → 此使用者／工作區已保存的覆蓋設定（若有啟用保存功能）→ Word 初始網址**」。前端輸入尚未按「套用」前只算草稿；恢復預設應回到 Word 原始值，而非猜測模型或清除其他欄位。若 Word 未填 URL，但明確指定了服務類型／模型，仍可提供**待設定**欄位供使用者補上網址；不可捏造連線成功。
+
+### 18.2｜Flask 網頁：Accordion 可收合、依服務類型自動生成
+
+1. 在首頁或受保護的「服務設定」區使用 `<details>`／Accordion，預設收合為「**Ollama 與多模態服務網址**」。展開後依實際清單分組「Ollama（N 個）」、「圖片（N 個）」、「影片（N 個）」、「音樂（N 個）」等，**N 必須由 Word 實際啟用的服務決定**；例如 Word 設了 2 個 Ollama、1 個圖片、2 個影片、1 個音樂，則有 6 個獨立的 URL 欄位。只使用 LTX 的專案不應憑空出現圖片／音樂設定。服務名稱、用途、模型 ID、原始 Word 預設、目前生效 URL（適當遮罩敏感片段）及驗證狀態應明確區分。
+2. 每筆服務至少提供：**編輯 Base URL**、**測試連線／能力**、**套用替換**、**恢復 Word 預設**，以及簡短的狀態／錯誤原因。可以再加入「套用後保存至個人工作區」選項；保存必須有權限隔離、版本紀錄與安全儲存，不能任意覆寫原始 Word 或全站共用的設定。沒有權限的訪客只能看到不洩密的必要狀態，不可修改其他人的服務網址。網址欄位要支援 ngrok 重新分配的 URL，也可依部署政策支援明確授權的域名或 localhost，且在小螢幕上仍能閱讀與操作。
+3. **後端動態生成 UI 與 API 清單，不寫死服務種類或數量。** 建議依實際 Service Registry 實作適當的 `GET /api/services`、`PATCH /api/services/{service_id}`（更新草稿／覆蓋設定）、`POST /api/services/{service_id}/verify` 等受保護介面；路徑僅為應用內部設計示例，不可據此推斷遠端模型有同名端點。前端和後端皆驗證 `service_id`、URL 結構及服務權限。需要「取消／取消修改」時不得影響已送出的背景工作。這只是服務設定介面，**不能藉由 URL 編輯提供使用者任意對網際網路／內網發 HTTP 請求的 Proxy**。
+
+### 18.3｜網址安全與服務身分相容性驗證
+
+1. **允許授權使用者替換既有服務槽位，不等於允許任意 SSRF。** 後端需依部署型態採嚴格政策：共享／公開網站應要求登入、工作區歸屬，並限定經核准的外部主機／網域（例如管理者允許的 ngrok 服務域名）、HTTPS 與合法 port；`127.0.0.1`、私有 IP、loopback、link-local、metadata、IPv6、DNS rebinding 與每次 redirect 的風險必須獨立判斷。僅對本機單人／可信管理者，且有明確設定時才允許 localhost 或指定內網服務；不可以透過 URL 欄位繞過公司／學校網路政策。驗證需在**每次實際連線**重做，必要時限制 proxy／出口；不能僅依前端檢查或首次 DNS 查詢。
+2. **網址替換後先檢查，不能直接宣稱成功。** 只呼叫附件／Provider 確實存在的 health、模型清單、schema、capabilities API；Ollama 可依實際支援查 `/api/tags`、`/api/show`；多模態模型依其 `.ipynb`、`.py` 實際 route／payload／model mode 驗證，禁止假設 LTX、圖片、音樂有一樣的 `/generate`、`/jobs`。檢查服務身分、模型 ID、Provider contract／輸出倍率、解析度／FPS／Duration／音訊等能力；如部署更新造成契約過期，進入既有的可操作相容性驗證流程。**Health ready 不代表 Tool calling、音樂／圖片／影片生成或 GPU 推論已通過 Live 驗收**；需要 GPU／付費測試時需事先取得同意。
+3. **替換失敗不能污染生效設定。** 新 URL 若格式錯誤、服務離線、ngrok HTML warning、回傳非預期格式、模型不符或無法滿足必要能力，前端保留輸入草稿與可理解的錯誤，既有有效設定維持不變；若原設定也失效，顯示「離線／待驗證」與可操作入口，而非假裝可生成。不得自動退回另一個不同 Provider 造成付費或錯誤產物；需要跨服務 fallback 時須明確規劃及授權。認證 Token、URL 查詢字串中可能帶有的秘密、API Key 不得出現在前端狀態、SSE、公開日誌或歷史匯出。
+
+### 18.4｜執行快照、歷史紀錄、生成恢復與多工作隔離
+
+1. **每次提交工作前，按本次選用服務 ID 解析有效 URL，經檢查後建立不可變 `run_config`。** 快照至少記錄 `service_id`、已選模型／功能、設定版本與受保護的實際端點識別（依敏感度決定是否遮罩）；工作進行中若使用者更換 URL，只影響**未來的新 Run**，不能讓舊 Run 的 Ollama 呼叫、LTX polling、下載或圖片／音樂生成突然改連另一臺機器。併發 A、B 工作使用各自的設定快照，不使用全域可變 `current_url`。
+2. **遠端工作恢復以原 `external_job_id` 和原服務身分為準。** 若工作已送出，ngrok 舊 URL 失效不能把同一個 Job ID 直接指向新 URL 就認定屬於同一遠端佇列；只有在新 URL 被驗證為**相同部署／服務、且能查到同一 Job**時，才可接續輪詢／下載。無法證實就標示 `service_endpoint_changed`／`remote_job_unreachable` 或適當狀態，提供授權重新連線／人工確認，不得盲目重新 submit；不能以網址替換繞過 `submission_unknown` 的防重複規則。
+3. **歷史回填應帶回當時的服務選擇與配置版本，但不可默默改掉目前生效的共用設定。** 載入歷史只回填表單與顯示既有結果，不觸發健康檢查以外的昂貴工作，也不自動重新生成；若要依歷史重新生成，先顯示舊 URL 是否失效，讓使用者重新選擇／驗證當前服務並建立新 Run，保留 `regenerated_from`。改網址、修改 Accordion 開關與 SSE 重連本身**都不應觸發新的 Ollama／多模態生成請求**。
+
+### 18.5｜強制驗收：欄位數量、替換效果與端對端測試
+
+- **需求驅動：** Word 分別配置 0／1／多個 Ollama、圖片、影片、音樂服務，檢查 UI 組數及個別 Service ID 精確對應；未選用的類型不出現，只有「例如」不當作服務，Word 預設 URL 顯示但不會自動變成固定程式碼。不同同類模型可獨立修改且不會互相覆蓋。
+- **URL 替換可驗證：** Word 預設 A → 授權使用者在 Accordion 輸入 B → 測試連線及模型能力 → 套用 → **下一筆** Flask 任務的實際 Ollama／圖片／影片／音樂 API 呼叫落到 B；恢復預設後新任務回 A。若 UI 顯示 B 但後端仍請求 A，視為失敗。新 URL 驗證失敗不應偷偷取代上一個有效 URL。
+- **工作隔離及恢復：** 同時運行 A、B 兩筆工作，新網址只影響新 Run；正在 poll 的舊影片不得改到別人的 Provider／job ID，不因改 URL 重複 submit。SSE 重播不重複驗證或修改設定；Flask 重啟後工作配置版本與歷史仍可還原。
+- **安全與邊界：** 測試未授權修改、跨使用者操作、localhost／私有 IP／DNS rebinding、重新導向、ngrok warning HTML、服務名稱與模型不符、過期契約、服務離線、取消驗證、JSON／UTF-8 與遮罩機密；後端必須拒絕越權與危險 URL，而不是依賴前端禁用按鈕。
+- **真實操作：** 透過 Flask test client 和瀏覽器測試展開／收合、中文標籤、編輯／測試／套用／還原及錯誤顯示；外部模型以 Mock 驗證真實配置傳遞，可連線時才另做 Live URL／Provider 檢查，不得把 Mock 成功冒稱已通過真實模型生成。交付 ZIP 的 README 要說明 Word 預設與網頁替換的差別、ngrok URL 更新、驗證步驟及失敗排除。
+
+
+**純 Python 版專屬約束：** 服務清單、URL 驗證、模型 API Client 與背景任務均由一般 Python 函式及資料結構實作；依 `service_id` 選擇實際需要的 Ollama、圖片、影片或音樂 API。禁止加入 AG2／AutoGen／其他 Agent 框架，也不需要建立通用 Agent Builder；設定功能不應改變原本的非 Agent pipeline。
+
+---
+
+## 十九｜自然語言需求解析、原始影片與最終成品契約：依實際 Notebook 追查之強制規範（2026-11-25）
+
+### 十九.1｜使用者的一句話須拆為真正的檢索查詢與產物約束
+
+當使用者輸入「我想了解桃園三結義的故事。請用日式可愛卡通風格，不要燒字幕在影片中，人物說話使用繁體中文。」時，**不要直接把整句送進 DDGS**，也不要把畫風、字幕、口音當成史料搜尋詞。解析後至少形成並保存以下結構（範例，不得固定套用桃園三結義）：
+
+```json
+{
+  "original_user_query": "我想了解桃園三結義的故事。請用日式可愛卡通風格，不要燒字幕在影片中，人物說話使用繁體中文。",
+  "research_query": "桃園三結義的故事",
+  "generation_preferences": {
+    "visual_style": "日式可愛卡通風格",
+    "script_language": "zh-Hant",
+    "spoken_language": "zh-TW",
+    "burn_subtitles": false,
+    "subtitle_language": null
+  }
+}
+```
+
+- `zh-Hant` 表示繁體中文**文字**；`zh-TW` 在此表示使用者期望的臺灣華語口述，不等於音訊已通過發音驗證。「不要燒字幕」只確定不將字嵌進 MP4；若使用者另要求英文字幕，可另提供英文 SRT，**不可因字幕語言改變口述語言**。
+- 保留原始文字、結構化解析結果、來源（明示／合理推論／預設）、解析信心與必要時的衝突處理。使用者明確輸入、網頁當前覆寫、Word 預設的優先順序必須可追蹤；不能讓舊設定靜默覆寫新要求。
+- 將 `research_query` 給 DDGS／Hybrid Retrieval；將畫風給影像或影片 Prompt；將語言與語速給口述稿／語音生成；將字幕規則給輸出及驗證。未要求之參數不可憑空推斷為已授權；解析失敗時應能安全請求更正或使用有標記的預設。
+- `request_analysis` 同一實際事件不得重複推播兩次；即時 UI 依 `event_id` 去重，並可展開查看原始輸入、研究問題及產物要求。不得因字串刪除規則誤刪真正的史料問題。
+
+### 十九.2｜Word／網頁設定代表「交付成品規格」，不是模型內部張量大小
+
+- `.docx` 填寫的預設 Width／Height、FPS、片長，及使用者在 Flask 網頁改動的值，代表使用者期望的**最終可下載成品**。每筆 Job 必須保留不可變的 `requested_*`；Provider Adapter 依所連接實際 Notebook／Server 契約選擇合法 `provider_*`，實際影片再以 FFprobe 取得 `raw_*`、`delivered_*`。**不可把兩倍原始輸出直接冒稱符合原尺寸，也不可將多出來的高解析度自動解釋成使用者願意更改尺寸**。
+- 本次提供的 `Kaggle.zip` 內 LTX-2.5 引擎會載入 `ltx-2.5-latent-spatial-upscaler-x2-bf16-1.0.safetensors`，且其雙階段 Workflow 依賴 Upscaler。實際案例 `requested=512×288`、`observed_raw=1024×576` 與 ×2 一致；但**只可依目前部署、下載到的 Workflow 及實際 FFprobe 證據確認**，不可推廣到所有模型或未驗證部署。
+- 這份 LTX 引擎要求模型輸入寬與高皆至少 **256 px** 且為 **32 的倍數**。`512×288` 是合法模型輸入；若想倒推 ×2，`256×144` 的高度 **144 不合法**。因此不能盲目以 `requested / 2` 作為 API 請求，也不能在 Widget 或 Flask 背後偷偷改參數。
+- 對此 LTX 部署，若以 `512×288` 作為模型合法輸入，原始輸出 `1024×576`，可選擇**事先在介面／API 契約公開的 `exact_final` 政策**：先保留且驗證 raw，再以等比例 FFmpeg downscale 交付 `512×288`，驗證成品、寫入 `postprocessed=true` 及 `raw_output`／`delivered_output`。後處理並非校正錯誤的藉口；必須是預先揭露且符合使用者授權、畫面不變形的正式交付政策。其他需裁切、補邊、變形或付費的方式，仍須獨立取得同意。
+- 如果使用者**明確選擇 `native` 原生輸出**，可交付經驗證的 `1024×576` 並明示不同於 UI 輸入；不得預設替使用者改為 native。若模型輸出不是已驗證的 1×／2× 或實際 FPS 不符，應報錯並提示可操作的重新驗證流程；**不能自動從任意失敗任務學習倍率**。
+- 對其他模型（例如 MiniMax H3、HyperFlow H3 Flash、圖片／音樂模型），須逐一檢查其原生 Notebook 與 Server 規則；**不得直接複製 LTX 的 ×2 契約或下採樣流程**。若尚未檢查到其下載的 Workflow、模型或外部部署，標示未經 Live 驗證，不冒稱已通過。
+
+### 十九.3｜片長應以影格／容器語意與可證明的容忍值驗收
+
+- **使用者設定的總片長是目標／限制；驗收時允許 Provider 已確認的影格級技術誤差，不允許任意延長影片內容。** 對多段影片，先把所有規劃片段及轉場配置在 `total_duration_seconds` 內，預留封裝／拼接誤差；不得把「15 秒整部影片」誤當「每一段 15 秒」。
+- 同一模型可能使用 `seconds`、frames 或含首尾影格的計算方式，生成結果還受封裝時間基準與音軌長度影響。以 **24 FPS** 為例，多一個影格約 `1/24 = 0.041667` 秒，所以 `15.042` 秒可能是正常影格量化結果，而不是必然生成失敗；應檢查真實 frame count、video stream FPS 與 duration，而非只比對字面 `15.000`。
+- **統一驗收公式**：`observed_delivered_duration_seconds <= total_duration_seconds + duration_tolerance_seconds`，僅在實際 Provider／部署的 FPS、frame count、時間基準與容器／音軌行為有可核對證據時採用相應容忍值。先計畫內容不超過名目時長，容忍值只處理影格量化／封裝差異，不能拿來增加劇情、分鏡或口述字數。先前 LTX 修正版程式的離線測試示例使用 `duration_tolerance_seconds = max(0.1, 2 / fps)`，24 FPS 下 `15.042` 秒可通過、`17.000` 秒不通過；此公式**不等於**所有 Provider 已完成 Live 驗證，部署前應依實際契約校準或縮緊，必要時限制可容忍的實際額外影格數，不得任意放寬。
+- 以 FFprobe 分別記錄容器、視訊與音訊的實測片長、FPS／frame count／time base，判斷超出名目時長的部分是否確為技術誤差。SRT 最後時間碼不得超出**真實交付 MP4** 的可播放區間。容忍微小差異不代表可拉長內容、忽略音軌、放棄完整台詞或嘴型驗收；須分別註明 Raw／Delivered 哪一份通過驗證，並記錄容忍值來源與契約版本。
+
+### 十九.4｜請求參數可追溯、前置檢查、回歸測試及交付門檻
+
+1. 每筆 Job 儲存 `docx_default → web_override → request_analysis → immutable_snapshot → HTTP payload → provider_input → raw_output → delivered_output` 參數鏈；保留原始與轉換前後 Width／Height、FPS、seconds、seed、policy 與版本資訊，避免併發請求互相覆蓋。
+2. 在耗費 GPU 的 POST **之前**完成模型最小尺寸、32／64 倍數、FPS、任務模式、影像數量與時長的預檢；不得讓不合法的 LTX `256×144` 排隊後才失敗。Server 與 Client 必須有一致且可查詢的 Schema。
+3. 實際影片驗證以 FFprobe／可解碼檔案為準，具體保留 `requested`、`provider_input`、`raw_output`、`delivered_output`、`spatial_scale`、`duration_tolerance_seconds`、`duration_tolerance_source`、`output_policy`、`postprocessed`；失敗要保留診斷與原始產物，不能顯示 `succeeded`。
+4. 測試應包括：需求解析分離、Word／網站值覆寫、`512×288 → raw 1024×576 → delivered 512×288`、1× 不需處理、非法 144px 拒絕、尺寸不匹配報錯、FPS 不符、`15.042s` 允許、`17s` 拒絕、`native` 明示原始尺寸、無字幕與中英 SRT 分離、後處理不改音訊、Job idempotency 及重啟恢復。
+5. **不得宣稱本地 FFmpeg 合成影片測試等同 GPU 模型 Live 測試**。對 Notebook／Client 的修改需同步遠端嵌入的生成腳本、更新提供下載的完整 ZIP、保留具體變更紀錄與未驗證事項。
+
+**純 Python 專屬：** 由一般函式、Flask 背景工作及 Provider Adapter 直接傳遞參數與驗證結果；禁止為了追蹤這些狀態而增加假的 Agent 或 Handoff。
+
+
+## 二十｜多模態生成 Prompt Refinement、風格忠實度與無亂碼字幕驗收（2026-11-25）
+
+
+**適用條件與優先順序。** 本章適用於 `.docx` 實際選用、並由 Notebook／Server 確認可用的文字、圖片、音樂、影片、語音等模型；沒有啟用的模態不應建立假的生成服務。本章是前文「需求解析／模型能力／字幕規則」的**統一落地規則**：較前面任何「一律把 `no subtitles` 放入 positive prompt」等通用說法，**以本章按 Provider 實際支援能力選擇正向／負向提示詞的要求為準**。不能把 Prompt 寫入後就宣稱成品一定遵守。驗收仍須依可觀察結果與實際能力進行。
+
+### 二十.1｜自然語言條件不能停留在解析結果：必須真正進入每個適用模型的 Prompt
+
+1. **需求解析→實際 Prompt 的雙重驗證。** 先保留 `original_user_query`，產生與檢索分開的 `research_query`／`output_requirements`／`generation_preferences`；再合併 Word 真實填答、網站當次明確覆寫、使用者本次自然語言指令與 Provider 能力，建立每次工作不可變的 `GenerationSpec`。每個有關的條件必須有 `value`、`source`（explicit_user／web_override／docx_default／inferred）、`modality`、`required`、`verification_method`；未指定的項目不可當成已指定。使用者**當次明示的可覆寫條件優先於預設**；與硬性限制或不支援能力衝突時，須回報衝突，不得私下忽略。
+2. **以模型能力編譯，而不是把原始 Query 直接貼給每個生成 API。** 建立可測試的 `PromptPlan → PromptRefinement → PromptValidation → ProviderAdapter → actual_payload` 流程。從使用者的「日式可愛卡通」展開為具體可操作且相容的美術語意，例如 `2D hand-drawn kawaii anime aesthetic`、`rounded cute character proportions`、`clean line art`、`soft pastel palette`、`expressive simplified faces`、`illustrated background`、`consistent cel-style shading`；必要時改寫成人類可理解的臺灣繁體中文描述。**不可把原本寫實的孔子範例的 `photorealistic / live-action / realistic skin textures` 照抄到動畫請求**，也不可讓通用 cinematic 模板暗中覆寫使用者指定的 2D 卡通風格。具體擴寫需與使用者用語一致，不得無故加入指定作品或在使用者沒要求時變更成 3D、擬真、油畫、寫實紀錄片。
+3. **每次模型呼叫的有效輸入要可查核。** 至少保存經權限控管的 `structured_generation_spec`、`prompt_template_id/version`、`refined_prompt` 或安全摘要／hash、`negative_prompt`（實際支援時）、`prompt_enhancement_requested/effective`、`provider_model/workflow_version`、`actual_provider_payload`（遮罩 token）、`constraint_checks`，以便從自然語言追到實際 API。不要記錄不必要的私人資料、完整對話或金鑰；有敏感 Prompt 時採授權檢視及適當遮罩。**只檢查 `GenerationSpec` 內有 `visual_style` 不夠，必須檢查真正提交的最終 Prompt 與 Payload**。
+4. **防止兩次 LLM／Prompt Enhancer 改壞條件。** 若先使用 Ollama 產生結構化的 Prompt，再使用 Provider 自帶 Enhancer，需檢查兩階段輸出；對硬性限制（畫風、原始台詞、口述語言、無燒字、尺寸、FPS、總片長）執行最終 `constraint preservation check`。預設不要讓未知／不可檢查的 enhancer 在幕後加入「寫實感」、新台詞、英語聲音、標題卡或字幕；關閉、跳過或受控修復要依實際 API 能力進行。`prompt_enhancer=off` **只代表不使用該次自動 Prompt 改寫，不代表模型就一定不生成文字**。
+5. **輸出格式。** 可用精簡的結構化 `PromptPlan`，例如 `content_brief`、`visual_style`、`scene`、`characters`、`camera`、`actions`、`dialogue[]`、`spoken_language`、`script_locale`、`music_style`、`instrumentation`、`lyrics`、`text_render_policy`、`negative_prompt_policy`、`duration_policy`、`acceptance_checks`。每個模態只取用適用欄位；不得強迫音樂模型使用鏡頭指令、讓圖片模型產生不存在的聲軌、把字幕語言送去控制語音、或用檢索風格描述篡改史實證據。
+
+### 二十.2｜依圖片／音樂／影片／文字實際能力產生不同 Prompt
+
+| 模態 | Refine 重點 | 對應實際輸入與驗收 |
+|---|---|---|
+| **文字／檢索增強回答** | 研究主題、使用者問題、受引用的證據、語言、說明深度、輸出結構、禁止無根據斷言 | LLM System／User Prompt；驗證引用、JSON Schema、語言與主題，不把畫風混入 DDGS Query |
+| **圖片（如 Z-Image-Turbo）** | 主體與構圖、2D／3D／寫實畫風、線條與色彩、背景、光線、畫面比例、是否需要可讀文字 | 圖像 Prompt 與合法尺寸；必要時檢查實際影像。**Z-Image-Turbo 官方說明：其蒸餾版通常不使用傳統 Negative Prompt，不得假設傳入 negative 欄位就會生效** |
+| **音樂（如 HeartMuLa）** | 曲風、情緒、BPM／節奏、樂器、人聲有無、演唱語言、歌詞與段落、片長、參考音訊（若支援） | 依服務實際協定對應 tags／lyrics／prompt／音訊參數；純演奏時不要自行補歌詞。檢查聲音內容與語言，不能以文字送達代替可聽見的效果 |
+| **影片（如 LTX 2.5）** | 指定畫風、固定角色形象、場景、動作時間序列、鏡位、可用時長、精簡對白、口音、音效、乾淨畫面 | T2V／I2V 等真正支援的 payload；依 Provider 正確生成 final prompt、必要的 negative、字幕政策。驗證抽樣影格、實際音訊、尺寸、FPS、時長及成品 |
+| **語音／其他模態（若 Word 指定）** | 說話者、語言、書寫系統、語速、音色、語氣、禁止改寫的台詞、聲學設定 | 依 Notebook／Server 實際支援參數建立專屬 Prompt／請求，沒有對應 API 就不得假裝支援 |
+
+- **模態相同不代表模型契約相同。** `negative_prompt`、CFG、enhancer、style reference、audio guidance、TTS、SRT、I2V 等能力須以真實 Notebook／Server／Workflow 檢查後使用。LTX-2.5 官方建議包含 shot、scene、action、character、camera、audio，對白以引號表達並註明語言與口音；不應把其他模型的 prompt 標籤原封不動貼入 LTX。
+- **歷史敘事持續受 Grounding 約束。** Prompt Refiner 只能將已驗證劇情轉成可視化美術與表演指令，不得憑空新增重大史實；《三國演義》的文學敘事與正史差異需在內容審查階段處理。視覺風格不影響事實來源／史料真偽。
+
+### 二十.3｜「畫面不燒字幕」必須分三個技術層級防護，不得只靠一句 Prompt
+
+1. **後製／播放器層：明確禁止嵌字。** 使用者要求「不要燒字幕」或未指定時，`burn_subtitles=false`、`text_render_policy=no_burned_in_text`；後端不得呼叫 FFmpeg `subtitles`／`drawtext` 等加字濾鏡，不產生標題卡或下方字幕條；獨立 `SRT/VTT` 如有需求須作為可開關軌道或下載檔案，不能藉此將文字壓進 MP4。播放器顯示的外掛字幕、MP4 內含的可關閉字幕軌、以及模型直接**畫在像素裡的偽字幕**是三件不同事情，應分別排查。
+2. **模型生成層：不要把禁止事項當成可保證的咒語。** 正向 Prompt 以**乾淨且不涉及排版的可視場景**描述為主，例如無字衣物、單純景物、沒有海報的背景，突出角色演出與鏡頭；避免讓不支援負面提示的蒸餾模型在正向 Prompt 大量看見 `subtitles / captions / text / letters` 等文字概念。**只有真實 Workflow／CFG／Sampler 能有效處理 Negative Prompt 時**，才將 `subtitles, captions, on-screen text, titles, letters, logos, watermarks, gibberish text, unreadable lettering` 等放進**獨立 negative_prompt**。是否有效須依模型及實測，不得假設所有 LTX／所有多模態模型均相同。
+3. **Workflow 層：分辨模型原生文字與疊加文字。** 實際檢查 ComfyUI Workflow 是否有 text-overlay／subtitle／caption／logo／watermark／save-video 附加節點；禁用不必要的文字合成。對於 LTX 蒸餾版，負面提示可能因 guidance 設定而無效；如要使用 NAG 類節點，**只有在已安裝、相容且經驗證**時才啟用，不能當作所有環境的必備功能。對圖片生成亦不得在不支援的 CFG 模式強行宣稱 negative 有效。
+4. **驗證層：不燒字要檢查像素，而不只是 `ffprobe`。** FFprobe 只能檢查編碼流與軌道，**無法證明影格中不存在 AI 畫出的亂碼字幕**。產物驗證可抽查不同時間點的影格，進行視覺檢查或可用時以 OCR／VLM 輔助偵測下方文字區、標題卡、符號紋理；偵測結果可能有 false positive／false negative，不得僅憑單一 OCR 判定成功，必要時提供人工複核。若有未授權的可見文字，標為 `needs_review`／`VISUAL_TEXT_DETECTED` 或 `quality_failed`，不可直接顯示完全合格。再生成屬新的昂貴 Job，須有限次、遵守使用者授權與防重複提交規則。
+5. **對白與禁止畫字彼此獨立。** `spoken_dialogue` 是音訊事件，**不是字幕指令**；不要將中文口述台詞同時放在「畫面文字」欄位，也不要因移除字幕就刪除真人／卡通人物說話需求。中文聲音、繁體中文字幕／英文外掛字幕及字幕顯示方式是不同參數。人物台詞是否清楚、嘴型是否對上、語音是否完成，仍需音訊／ASR／人工分開驗收。
+6. **孔子成功案例的正確用法。** 使用者提供的成功 Prompt 主要具備角色固定、連續場景、慢鏡頭、逐句引號口述、臺灣華語、清楚音訊與簡潔背景；**原文沒有直接保證禁字的模型參數，也沒有證明哪一項措辭讓字幕消失**。只能抽取其可重用的敘事與聲音結構，不能把「寫實歷史電影」和「不要字幕」錯當同一個 style preset，也不能保證換題材、seed、模型後仍無亂碼。
+
+### 二十.4｜桃園三結義：從自然語言到有效 LTX Prompt 的示範
+
+**使用者輸入（示例）：**「我想了解桃園三結義的故事。請用日式可愛卡通風格，人物說話使用繁體中文。」
+
+```json
+{
+  "research_query": "桃園三結義的故事",
+  "generation_preferences": {
+    "visual_style": "2D hand-drawn kawaii Japanese anime",
+    "script_locale": "zh-Hant-TW",
+    "spoken_language": "zh-TW",
+    "voice_accent": "Taiwan Mandarin (inferred preference)",
+    "burn_subtitles": false,
+    "subtitle_mode": "external_srt"
+  },
+  "output_constraints": {
+    "total_duration_seconds": 15,
+    "requested_dimensions": "from_docx_or_current_web_override"
+  }
+}
+```
+
+**LTX 正向 Prompt 示例**（假設本次需要 15 秒、已完成故事證據與台詞審查，且服務確認接受英文場景描述／中文對白；實際程式應動態替換，不得硬編碼桃園三結義）：
+
+```text
+A 15-second continuous scene in a charming 2D hand-drawn Japanese kawaii animation aesthetic. The entire video uses clean illustrated outlines, soft pastel colors, gently shaded flat cel-animation, rounded cute character proportions, and expressive animated faces. Every frame maintains the same hand-drawn anime style; the people, peach blossoms, courtyard and clothing all belong to this illustrated world. The entire presentation follows a consistent illustrated storybook look with simple painted backgrounds.
+
+In a peaceful peach orchard inspired by the literary scene from Romance of the Three Kingdoms, three cute ancient Chinese characters wearing simple stylized period robes stand close together beneath blooming peach trees. The peach petals drift slowly. The central character smiles, turns toward his two companions and speaks while his face and mouth remain clearly visible. The camera holds a steady medium shot with a gentle animated push-in; the other two characters listen silently.
+
+The central character speaks in clear, natural Mandarin with a Taiwan Mandarin accent, using the following Traditional Chinese dialogue exactly once: "在《三國演義》中，劉備、關羽和張飛，在桃園結為兄弟。" His speech is warm and unhurried, with natural pauses and mouth movements synchronized to the Chinese words. Soft orchard ambience remains in the background, and there is no competing music. The scene finishes with all three smiling and exchanging a respectful nod. The illustrated background is uncluttered, and the robes have simple plain surfaces.
+```
+
+**重要：** 此 positive Prompt **不包含**「請顯示中文台詞／字幕」之類的可視文字要求；它只是讓角色**說出**引號中的中文對白。`burn_subtitles=false` 是獨立的產物政策；若目前 LTX 的負面提示確實生效，再以獨立 `negative_prompt` 控制畫面字幕／文字。**不可把 JSON 示例的 `15` 秒或指定尺寸強行覆寫 `.docx`／網站本次真實數值**；此處 15 秒只是示例。需要英文外掛字幕時，仍單獨生成 SRT，而不動模型正向場景 Prompt。
+
+其他模態的精煉範例（只在相應功能被 Word 真正啟用時使用）：
+
+- **圖片：** `Cute 2D hand-drawn Japanese anime illustration of three stylized ancient Chinese companions in a blossoming peach orchard; rounded expressive faces, clean black outlines, soft pastel palette, warm spring daylight, simple plain robes, balanced storybook composition.`（圖片模型沒有語音，不能要求它「念」中文台詞；Z-Image-Turbo 不假設有可用 Negative Prompt。）
+- **音樂：** `Style tags: gentle East Asian storybook instrumental, warm acoustic strings, bamboo flute, light percussion, whimsical and calm. Lyrics: none. Vocals: none.`（實際 tags／lyrics 欄位須依 HeartMuLa Server 支援格式；使用者若要求繁體中文**演唱**，才提供符合時長與語言要求的已審核歌詞。）
+- **文字：** `使用臺灣繁體中文，根據可追溯來源簡述《三國演義》中的桃園三結義，指出文學敘事與史實可能不同；禁止無來源的具體史實斷言。`（此 Prompt 不應被誤送給影片生成模型當成可視字幕。）
+
+### 二十.5｜強制回歸測試、UI 透明度與交付門檻
+
+1. **指定風格必須真的傳到模型。** Mock `request_analysis` 接受「桃園三結義＋日式可愛卡通＋繁體中文對白」，確認檢索只收到桃園三結義；實際提交 Payload 的 **final positive prompt** 明確包含手繪 2D、可愛比例、動畫線條、粉彩色調、角色一致性，**且沒有反向的 `photorealistic`／`live-action`**。不能只確認 JSON 中 `visual_style` 有值。
+2. **外掛字幕與像素文字分別測試。** `burn_subtitles=false` 時 FFmpeg／後處理不能新增字幕；SRT/VTT 可以獨立生成並在播放器中開關。Mock 可模擬模型仍畫出中文／亂碼文字，驗證 UI 不會因為 `burn_subtitles=false` 就誤判成品無字；沒有影格檢查則標示尚未驗證。
+3. **模型能力差異要有測試。** 負向提示有效的 LTX Workflow，negative 要進入正確的 conditioning／payload；不支援或無效的 distilled／CFG=1 路徑不得假裝已套用；Z-Image-Turbo 不得宣稱單靠 negative 可以排字；HeartMuLa 對 tags／lyrics 分欄驗證，純演奏不補唱詞。
+4. **Prompt Enhancer 不可洗掉要求。** 以惡意或意外的 enhancer 回應（改成寫實、英語口述、加文字卡、改動逐字台詞）做注入測試；必須阻擋、回退已驗證 Prompt 或顯示可操作錯誤，而非照單生成。
+5. **實際成果要分層驗收。** `prompt_compliance`（輸入規格／文字檢查）、`provider_payload_compliance`（真正送達）、`artifact_compliance`（畫面風格／無可見亂碼／正確語言／字幕／音軌）不能合併成一個 Boolean。動態畫風是否成功可由抽樣影格／多模態判斷輔助，再由人工必要時確認；不能把風格主觀評分假裝成百分之百自動保證。不可因 HTTP 200 或生成 API 說 done 就標記美術要求通過。
+6. **避免重複生成。** 使用 Prompt 模板／模型版本／seed／規格快照保存可重現資料；若畫風不對，先展示「解析後條件／實際送出的 Prompt／Enhancer 狀態／檢查結果」供使用者定位，再在使用者授權且不會重複提交原 Job 的前提下有限次重新生成。各階段（需求解析、Prompt Refinement、靜態驗證、遠端生成、成品質檢）各自計時、顯示可收合細節，polling 仍以同一列更新計數。
+7. **交付需留證據。** 保留 `tests/test_prompt_refinement.py`、`tests/test_multimodal_prompt_contract.py`、`tests/test_no_burned_text_policy.py`（可按現有測試布局合理合併）及可重現的 mock Provider 案例；Live 沒跑過就標 `live_unverified`，不能拿 mock 的通過冒稱真的沒有文字亂碼。沒有可用 OCR／VLM 時，不必為此加入大型依賴，但必須提供人工抽影格檢核方式。
+
+**參考來源（2026-11-25 查詢；模型版本變更後仍須重新核對）：**
+
+- LTX 官方提示詞指南：https://docs.ltx.io/open-source-model/usage-guides/prompting-guide/
+- LTX-2.5 官方 Workflow 說明：https://github.com/Lightricks/ComfyUI-LTXVideo/blob/master/example_workflows/2.5/README.md
+- LTX 字幕錯誤與蒸餾版 Negative Prompt 限制：https://github.com/Lightricks/LTX-2/issues/18
+- Z-Image-Turbo 官方團隊對 Prompt／Negative Prompt 的說明：https://huggingface.co/Tongyi-MAI/Z-Image-Turbo/discussions/8
+- HeartMuLa 官方儲存庫：https://github.com/HeartMuLa/heartlib
+
+
+**純 Python 非 Agent 專屬要求：** 依現有程式設計使用 `parse_request()` → `validate_generation_spec()` → `refine_prompt()` → `validate_final_prompt()` → `provider_adapter.submit()` → `verify_artifact()` 等一般 Python 函式（函式名稱僅為參考），需要 LLM 才直接呼叫選用模型。不得建立假 Agent、Agent Group、Handoff 或不必要的抽象框架；真正 submit 前仍須驗證參數並使用 immutable snapshot。
